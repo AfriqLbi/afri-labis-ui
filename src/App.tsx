@@ -18,8 +18,10 @@ import AdminProductsPage from "./pages/admin/products/page.tsx";
 import AdminAnalyticsPage from "./pages/admin/analytics/page.tsx";
 import AdminProductionPage from "./pages/admin/production/page.tsx";
 import AdminCurrencyPage from "./pages/admin/currency/page.tsx";
-import NotFound from "./pages/NotFound.tsx";
 import { RequireAuth } from "./components/providers/require-auth.tsx";
+import LookbookPage from "./pages/lookbook/page.tsx";
+import AuthCallback from "./pages/auth/Callback.tsx";
+import NotFound from "./pages/NotFound.tsx";
 
 export default function App() {
   return (
@@ -31,10 +33,12 @@ export default function App() {
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/shop/:id" element={<ProductDetailPage />} />
           <Route path="/custom-order" element={<CustomOrderPage />} />
+          <Route path="/lookbook" element={<LookbookPage />} />
 
           {/* Auth */}
           <Route path="/auth/signin" element={<SignInPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Protected customer routes */}
           <Route element={<RequireAuth />}>

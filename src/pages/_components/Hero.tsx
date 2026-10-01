@@ -37,7 +37,8 @@ export default function Hero() {
             className="text-6xl md:text-8xl lg:text-[7rem] font-light text-white leading-[0.9] text-balance mb-8"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            Rooted in<br />
+            Rooted in
+            <br />
             <em className="text-primary not-italic font-semibold">Heritage.</em>
           </motion.h1>
           <motion.p
@@ -47,7 +48,7 @@ export default function Hero() {
             className="text-white/70 text-lg font-light max-w-lg mb-10 leading-relaxed"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            Contemporary African fashion that celebrates the richness of print, 
+            Contemporary African fashion that celebrates the richness of print,
             pattern, and ancestral craft — worn with pride.
           </motion.p>
           <motion.div
@@ -56,20 +57,20 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" as const }}
             className="flex flex-wrap gap-4"
           >
-            <a
-              href="/shop"
+            <Link
+              to="/shop"
               className="inline-flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               Shop Collection <ArrowRight size={14} />
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/lookbook"
               className="inline-flex items-center gap-3 border border-white/40 text-white px-8 py-4 text-xs tracking-[0.2em] uppercase font-medium hover:border-primary hover:text-primary transition-colors cursor-pointer"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               Explore Lookbook
-            </a>
+            </Link>
           </motion.div>
         </div>
       </div>
@@ -83,7 +84,11 @@ export default function Hero() {
       >
         <motion.div
           animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" as const }}
+          transition={{
+            repeat: Infinity,
+            duration: 1.8,
+            ease: "easeInOut" as const,
+          }}
           className="w-[1px] h-12 bg-primary/60"
         />
         <span

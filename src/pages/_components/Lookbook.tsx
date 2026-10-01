@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 
 const LOOKBOOK = [
   {
@@ -50,13 +51,13 @@ export default function Lookbook() {
             The Labi Edit
           </h2>
         </div>
-        <a
-          href="#"
+        <Link
+          to="/lookbook"
           className="hidden md:inline-flex items-center gap-2 text-xs tracking-[0.2em] uppercase text-primary border-b border-primary pb-0.5 hover:gap-4 transition-all duration-300"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
           Full Lookbook
-        </a>
+        </Link>
       </motion.div>
 
       {/* Masonry-style grid */}
@@ -67,12 +68,22 @@ export default function Lookbook() {
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: i * 0.1, ease: "easeOut" as const }}
+            transition={{
+              duration: 0.7,
+              delay: i * 0.1,
+              ease: "easeOut" as const,
+            }}
             className={`group relative overflow-hidden cursor-pointer ${
               item.size === "tall" ? "row-span-2" : "row-span-1"
             }`}
             style={{ aspectRatio: item.size === "tall" ? "auto" : "4/3" }}
           >
+            <Link
+              to="/lookbook"
+              className="block w-full h-full absolute inset-0"
+            >
+              <span className="sr-only">{item.label}</span>
+            </Link>
             <img
               src={item.img}
               alt={item.label}

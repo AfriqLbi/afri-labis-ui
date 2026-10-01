@@ -15,7 +15,7 @@ const NAV_LINKS = [
   { label: "Women", href: "/shop?category=women" },
   { label: "Men", href: "/shop?category=men" },
   { label: "Custom Order", href: "/custom-order" },
-  { label: "About", href: "#" },
+  { label: "Lookbook", href: "/lookbook" },
 ];
 
 export default function Header() {
@@ -43,14 +43,14 @@ export default function Header() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map((link) => (
-              <a
+              <Link
                 key={link.label}
-                href={link.href}
+                to={link.href}
                 className="text-xs tracking-[0.15em] uppercase text-muted-foreground hover:text-primary transition-colors duration-300"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -113,9 +113,8 @@ export default function Header() {
             className="fixed top-[65px] left-0 right-0 z-40 bg-background border-b border-border px-6 py-8 flex flex-col gap-6"
           >
             {NAV_LINKS.map((link, i) => (
-              <motion.a
+              <motion.div
                 key={link.label}
-                href={link.href}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{
@@ -123,12 +122,16 @@ export default function Header() {
                   duration: 0.3,
                   ease: "easeOut" as const,
                 }}
-                className="text-sm tracking-[0.2em] uppercase text-foreground hover:text-primary transition-colors"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-                onClick={() => setMenuOpen(false)}
               >
-                {link.label}
-              </motion.a>
+                <Link
+                  to={link.href}
+                  className="text-sm tracking-[0.2em] uppercase text-foreground hover:text-primary transition-colors"
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              </motion.div>
             ))}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
