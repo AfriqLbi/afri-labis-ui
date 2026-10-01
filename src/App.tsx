@@ -20,6 +20,7 @@ import AdminProductionPage from "./pages/admin/production/page.tsx";
 import AdminCurrencyPage from "./pages/admin/currency/page.tsx";
 import { RequireAuth } from "./components/providers/require-auth.tsx";
 import LookbookPage from "./pages/lookbook/page.tsx";
+import AboutPage from "./pages/about/page.tsx";
 import AuthCallback from "./pages/auth/Callback.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/shop/:id" element={<ProductDetailPage />} />
           <Route path="/custom-order" element={<CustomOrderPage />} />
           <Route path="/lookbook" element={<LookbookPage />} />
+          <Route path="/about" element={<AboutPage />} />
 
           {/* Auth */}
           <Route path="/auth/signin" element={<SignInPage />} />

@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 
 export default function BrandStory() {
   return (
@@ -24,32 +25,32 @@ export default function BrandStory() {
             className="text-5xl md:text-6xl font-light text-foreground mb-8 leading-tight"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            Dressed in the{" "}
-            <em className="text-primary not-italic">language</em>
-            {" "}of Africa.
+            Dressed in the <em className="text-primary not-italic">language</em>{" "}
+            of Africa.
           </h2>
           <p
             className="text-muted-foreground text-lg font-light leading-relaxed mb-6"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            LABI was born from a love of African textiles and a desire to bring 
-            the extraordinary craftsmanship of the continent to the modern wardrobe. 
-            Every piece tells a story — woven in tradition, cut for the present.
+            LÁBí is an indigenous African textile and fashion brand founded in
+            Ilorin, Kwara State, Nigeria — on a mission to take Aṣọ-Òkè and
+            African textiles to the world.
           </p>
           <p
             className="text-muted-foreground text-lg font-light leading-relaxed mb-10"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            We work directly with artisan weavers and print-makers across West Africa, 
-            ensuring fair trade and celebrating techniques passed down across generations.
+            We work with local weavers, tailors and artisans, creating
+            opportunities within our communities while building an African
+            textile brand with global ambitions.
           </p>
-          <a
-            href="#"
+          <Link
+            to="/about"
             className="inline-flex items-center gap-3 text-xs tracking-[0.2em] uppercase text-primary border-b border-primary pb-1 hover:gap-5 transition-all duration-300"
             style={{ fontFamily: "'Montserrat', sans-serif" }}
           >
             Read Our Story
-          </a>
+          </Link>
         </motion.div>
 
         {/* Image collage */}
@@ -63,13 +64,13 @@ export default function BrandStory() {
           <div className="grid grid-cols-2 gap-3">
             <img
               src="https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=500"
-              alt="Brand story 1"
+              alt="LÁBí craftsmanship"
               className="w-full object-cover mt-10"
               style={{ aspectRatio: "3/4" }}
             />
             <img
               src="https://images.unsplash.com/photo-1709809081557-78f803ce93a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=500"
-              alt="Brand story 2"
+              alt="Aṣọ-Òkè weaving"
               className="w-full object-cover -mt-10"
               style={{ aspectRatio: "3/4" }}
             />
@@ -89,10 +90,10 @@ export default function BrandStory() {
         className="max-w-7xl mx-auto px-6 mt-24 grid grid-cols-2 md:grid-cols-4 gap-8 border-t border-border pt-16"
       >
         {[
-          { num: "12+", label: "Artisan Families" },
-          { num: "6", label: "African Countries" },
-          { num: "200+", label: "Unique Prints" },
-          { num: "2018", label: "Est. Lagos" },
+          { num: "100%", label: "Made in Nigeria" },
+          { num: "Ilorin", label: "Founded" },
+          { num: "∞", label: "Heritage Preserved" },
+          { num: "Global", label: "Our Ambition" },
         ].map((stat) => (
           <div key={stat.label} className="text-center">
             <p

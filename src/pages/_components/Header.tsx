@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { label: "Men", href: "/shop?category=men" },
   { label: "Custom Order", href: "/custom-order" },
   { label: "Lookbook", href: "/lookbook" },
+  { label: "About", href: "/about" },
 ];
 
 export default function Header() {
