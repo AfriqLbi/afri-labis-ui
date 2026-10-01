@@ -12,10 +12,6 @@ import {
   type TooltipContentProps,
 } from "recharts";
 import {
-  type NameType,
-  type ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
-import {
   useAdminMetrics,
   useAdminRevenueSeries,
   useAdminCategoryMix,
@@ -33,7 +29,7 @@ function RevenueTooltip({
   active,
   payload,
   label,
-}: TooltipContentProps<ValueType, NameType>) {
+}: TooltipContentProps) {
   if (!active || !payload?.length) return null;
   const value = payload[0]?.value;
   const ngn =
@@ -58,7 +54,7 @@ function RevenueTooltip({
 function PieTooltip({
   active,
   payload,
-}: TooltipContentProps<ValueType, NameType>) {
+}: TooltipContentProps) {
   if (!active || !payload?.length) return null;
   const entry = payload[0];
   return (
