@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, type RefObject } from "react";
+import { useState, useEffect, type RefObject } from "react";
 import { useDebounce } from "./use-debounce";
 
 interface Dimensions {
   width: number;
   height: number;
 }
+
+const INITIAL: Dimensions = { width: 0, height: 0 };
 
 /**
  * Observes the size of a DOM element and returns debounced width/height.
@@ -13,21 +15,8 @@ export function useDimensions(
   ref: RefObject<HTMLElement | null>,
   debounceMs = 100,
 ): Dimensions {
-  const [dimensions, setDimensions] = useState<Dimensions>({
-    width: 0,
-    height: 0,
-  });
-
-  const [rawDimensions, setRawDimensions] = useState<Dimensions>({
-    width: 0,
-    height: 0,
-  });
-
-  const debouncedDimensions = useDebounce(rawDimensions, debounceMs);
-
-  useEffect(() => {
-    setDimensions(debouncedDimensions);
-  }, [debouncedDimensions]);
+  const [raw, setRaw] = useState<Dimensions>(INITIAL);
+  const [debounced] = useDebounce(raw, debounceMs);
 
   useEffect(() => {
     const el = ref.current;
@@ -35,17 +24,17 @@ export function useDimensions(
 
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      setRawDimensions({ width, height });
+      setRaw({ width, height });
     });
 
     observer.observe(el);
 
-    // Set initial size
+    // Capture initial size
     const { width, height } = el.getBoundingClientRect();
-    setRawDimensions({ width, height });
+    setRaw({ width, height });
 
     return () => observer.disconnect();
   }, [ref]);
 
-  return dimensions;
+  return debounced;
 }
