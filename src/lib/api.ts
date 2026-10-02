@@ -776,21 +776,30 @@ export const adminCustomOrders = {
 // ── Admin: Analytics ──────────────────────────────────────────────────────────
 
 export const adminAnalytics = {
-  metrics() {
-    return request<{
-      totalRevenue: number;
-      totalOrders: number;
-      avgOrderValue: number;
-      pendingOrders: number;
+  async metrics() {
+    const raw = await request<{
+      revenueBase: number;
+      orderCount: number;
+      averageOrderBase: number;
+      pendingCount: number;
       lowStockCount: number;
     }>("GET", "/admin/analytics/metrics");
+    // Normalise field names and convert kobo → naira
+    return {
+      totalRevenue: (raw.revenueBase ?? 0) / 100,
+      totalOrders: raw.orderCount ?? 0,
+      avgOrderValue: (raw.averageOrderBase ?? 0) / 100,
+      pendingOrders: raw.pendingCount ?? 0,
+      lowStockCount: raw.lowStockCount ?? 0,
+    };
   },
 
-  revenueSeries(months = 6) {
-    return request<{ month: string; revenue: number; orders: number }[]>(
-      "GET",
-      `/admin/analytics/revenue-series?months=${months}`,
-    );
+  async revenueSeries(months = 6) {
+    const rows = await request<
+      { month: string; revenue: number; orders: number }[]
+    >("GET", `/admin/analytics/revenue-series?months=${months}`);
+    // revenue from the backend is in kobo — convert to naira for chart display
+    return rows.map((r) => ({ ...r, revenue: (r.revenue ?? 0) / 100 }));
   },
 
   categoryMix() {
