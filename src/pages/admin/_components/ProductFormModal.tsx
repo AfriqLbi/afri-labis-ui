@@ -3,8 +3,8 @@
  * Used for both CREATE and EDIT.
  * Pass `product` to open in edit mode; omit it for create mode.
  */
-import { useEffect, useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -12,14 +12,15 @@ import {
   useAdminUpdateProduct,
   useAdminCatalogCategories,
 } from "@/hooks/use-api.ts";
+import { adminMedia } from "@/lib/api.ts";
 import type { ApiProduct } from "@/lib/api.ts";
 import { Spinner } from "@/components/ui/spinner.tsx";
 
 const TAGS = [
   { id: "new_arrival", label: "New Arrival" },
   { id: "best_seller", label: "Best Seller" },
-  { id: "featured",    label: "Featured"    },
-  { id: "deal",        label: "Deal"        },
+  { id: "featured", label: "Featured" },
+  { id: "deal", label: "Deal" },
 ] as const;
 
 const STATUSES = ["draft", "active", "archived"] as const;
@@ -29,7 +30,7 @@ type Spec = { label: string; value: string };
 interface Props {
   open: boolean;
   onClose: () => void;
-  product?: ApiProduct; // undefined → create mode
+  product?: ApiProduct;
 }
 
 function emptyForm() {
@@ -41,7 +42,7 @@ function emptyForm() {
     price: "",
     compareAtPrice: "",
     stock: "0",
-    images: [""],
+    images: [] as string[],
     description: "",
     specs: [] as Spec[],
     status: "draft" as (typeof STATUSES)[number],
@@ -53,12 +54,12 @@ function productToForm(p: ApiProduct) {
   return {
     sku: p.sku,
     title: p.title,
-    brandId: "",          // not returned in response; blank is fine for edit
-    categoryId: "",       // same
+    brandId: "",
+    categoryId: "",
     price: String(p.price),
     compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : "",
     stock: String(p.stock),
-    images: p.images.length ? p.images : [""],
+    images: p.images.length ? [...p.images] : [],
     description: p.description ?? "",
     specs: p.specs as Spec[],
     status: p.status as (typeof STATUSES)[number],
@@ -69,24 +70,25 @@ function productToForm(p: ApiProduct) {
 export default function ProductFormModal({ open, onClose, product }: Props) {
   const isEdit = !!product;
   const [form, setForm] = useState(emptyForm);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const createMut  = useAdminCreateProduct();
-  const updateMut  = useAdminUpdateProduct();
+  const createMut = useAdminCreateProduct();
+  const updateMut = useAdminUpdateProduct();
   const { data: categories } = useAdminCatalogCategories();
 
   const isSaving = createMut.isPending || updateMut.isPending;
 
-  // Populate form whenever the modal opens or product changes
   useEffect(() => {
-    if (open) {
-      setForm(product ? productToForm(product) : emptyForm());
-    }
+    if (open) setForm(product ? productToForm(product) : emptyForm());
   }, [open, product]);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
@@ -94,27 +96,102 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
   const set = (field: keyof ReturnType<typeof emptyForm>, value: unknown) =>
     setForm((f) => ({ ...f, [field]: value }));
 
-  // ── Image list helpers ──────────────────────────────────────────────────────
-  const setImage = (i: number, val: string) =>
-    set("images", form.images.map((v, idx) => (idx === i ? val : v)));
-  const addImage = () => set("images", [...form.images, ""]);
-  const removeImage = (i: number) =>
-    set("images", form.images.filter((_, idx) => idx !== i));
+  // ── Image upload helpers ───────────────────────────────────────────────────
 
-  // ── Spec helpers ────────────────────────────────────────────────────────────
+  const uploadFile = async (file: File, targetIdx?: number) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image must be under 10 MB");
+      return;
+    }
+
+    const insertIdx = targetIdx ?? form.images.length;
+    setUploadingIdx(insertIdx);
+
+    try {
+      const url = await adminMedia.upload(file);
+      setForm((f) => {
+        const imgs = [...f.images];
+        if (targetIdx !== undefined) {
+          imgs[targetIdx] = url; // replace existing slot
+        } else {
+          imgs.push(url); // append new
+        }
+        return { ...f, images: imgs };
+      });
+    } catch (err: unknown) {
+      toast.error((err as Error).message ?? "Upload failed");
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
+
+  const handleFileInput = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    idx?: number,
+  ) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (idx !== undefined) {
+      uploadFile(files[0], idx);
+    } else {
+      files.forEach((f) => uploadFile(f));
+    }
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (!files.length) return;
+    files.forEach((f) => uploadFile(f));
+  };
+
+  const removeImage = (i: number) =>
+    set(
+      "images",
+      form.images.filter((_, idx) => idx !== i),
+    );
+
+  const moveImage = (from: number, to: number) => {
+    const imgs = [...form.images];
+    const [moved] = imgs.splice(from, 1);
+    imgs.splice(to, 0, moved);
+    set("images", imgs);
+  };
+
+  // ── Spec helpers ──────────────────────────────────────────────────────────
+
   const setSpec = (i: number, key: "label" | "value", val: string) =>
-    set("specs", form.specs.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
+    set(
+      "specs",
+      form.specs.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)),
+    );
   const addSpec = () => set("specs", [...form.specs, { label: "", value: "" }]);
   const removeSpec = (i: number) =>
-    set("specs", form.specs.filter((_, idx) => idx !== i));
+    set(
+      "specs",
+      form.specs.filter((_, idx) => idx !== i),
+    );
 
-  // ── Tag toggle ──────────────────────────────────────────────────────────────
+  // ── Tag toggle ────────────────────────────────────────────────────────────
+
   const toggleTag = (tag: string) =>
-    set("tags", form.tags.includes(tag)
-      ? form.tags.filter((t) => t !== tag)
-      : [...form.tags, tag]);
+    set(
+      "tags",
+      form.tags.includes(tag)
+        ? form.tags.filter((t) => t !== tag)
+        : [...form.tags, tag],
+    );
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.sku.trim() || !form.title.trim()) {
@@ -126,25 +203,29 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
       toast.error("Enter a valid price");
       return;
     }
+    if (uploadingIdx !== null) {
+      toast.error("Please wait for image uploads to finish");
+      return;
+    }
 
     const dto: Record<string, unknown> = {
       title: form.title.trim(),
       price,
       description: form.description.trim() || undefined,
-      images: form.images.filter(Boolean),
+      images: form.images,
       specs: form.specs.filter((s) => s.label && s.value),
       status: form.status,
       tags: form.tags,
       stock: parseInt(form.stock) || 0,
     };
 
-    if (form.compareAtPrice) dto.compareAtPrice = parseFloat(form.compareAtPrice);
-    if (form.categoryId)     dto.categoryId     = form.categoryId;
+    if (form.compareAtPrice)
+      dto.compareAtPrice = parseFloat(form.compareAtPrice);
+    if (form.categoryId) dto.categoryId = form.categoryId;
 
     if (!isEdit) {
-      // Create-only fields
-      dto.sku      = form.sku.trim();
-      dto.brandId  = form.brandId || undefined;
+      dto.sku = form.sku.trim();
+      dto.brandId = form.brandId || undefined;
     }
 
     try {
@@ -157,16 +238,16 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
       }
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Something went wrong";
-      toast.error(msg);
+      toast.error((err as Error).message ?? "Something went wrong");
     }
   };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -176,7 +257,6 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
             onClick={onClose}
           />
 
-          {/* Panel */}
           <motion.div
             initial={{ opacity: 0, x: 80 }}
             animate={{ opacity: 1, x: 0 }}
@@ -209,16 +289,19 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
               </button>
             </div>
 
-            {/* Scrollable body */}
+            {/* Body */}
             <form
               onSubmit={handleSubmit}
               id="product-form"
               className="flex-1 overflow-y-auto px-7 py-6 space-y-7"
             >
-              {/* ── Core fields ── */}
+              {/* ── Core details ── */}
               <Section title="Core Details">
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="SKU *" hint={isEdit ? "Immutable after creation" : undefined}>
+                  <Field
+                    label="SKU *"
+                    hint={isEdit ? "Immutable after creation" : undefined}
+                  >
                     <input
                       value={form.sku}
                       onChange={(e) => set("sku", e.target.value)}
@@ -254,7 +337,10 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
                 </Field>
 
                 {!isEdit && (
-                  <Field label="Brand ID" hint="ObjectId from the brands collection">
+                  <Field
+                    label="Brand ID"
+                    hint="ObjectId from the brands collection"
+                  >
                     <input
                       value={form.brandId}
                       onChange={(e) => set("brandId", e.target.value)}
@@ -295,7 +381,10 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
                       className="checkout-input"
                     />
                   </Field>
-                  <Field label="Compare-at Price" hint="Crossed-out 'was' price">
+                  <Field
+                    label="Compare-at Price"
+                    hint="Crossed-out 'was' price"
+                  >
                     <input
                       type="number"
                       min={0}
@@ -331,54 +420,181 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
               </Section>
 
               {/* ── Images ── */}
-              <Section title="Images" hint="Paste Cloudinary or any public image URLs">
-                <div className="space-y-2">
-                  {form.images.map((url, i) => (
-                    <div key={i} className="flex gap-2 items-center">
-                      <input
-                        value={url}
-                        onChange={(e) => setImage(i, e.target.value)}
-                        placeholder="https://res.cloudinary.com/..."
-                        className="checkout-input flex-1 text-xs"
-                      />
-                      {url && (
-                        <div className="w-10 h-12 shrink-0 overflow-hidden bg-muted border border-border">
-                          <img
-                            src={url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            onError={(e) =>
-                              ((e.target as HTMLImageElement).style.display = "none")
-                            }
-                          />
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(i)}
-                        disabled={form.images.length === 1}
-                        className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-30"
+              <Section
+                title="Images"
+                hint="Up to 10 MB per image · JPG, PNG, WebP"
+              >
+                {/* Existing images grid */}
+                {form.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-3">
+                    {form.images.map((url, i) => (
+                      <div
+                        key={url + i}
+                        className="relative group aspect-square bg-muted border border-border overflow-hidden"
                       >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={addImage}
-                  className="mt-2 flex items-center gap-1.5 text-[10px] tracking-[0.2em] uppercase text-primary hover:underline underline-offset-2 cursor-pointer"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
+                        <img
+                          src={url}
+                          alt={`Image ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+
+                        {/* First image = cover badge */}
+                        {i === 0 && (
+                          <span
+                            className="absolute top-1 left-1 text-[8px] tracking-[0.1em] uppercase bg-primary text-primary-foreground px-1.5 py-0.5"
+                            style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          >
+                            Cover
+                          </span>
+                        )}
+
+                        {/* Hover actions */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          {/* Replace */}
+                          <label
+                            title="Replace image"
+                            className="cursor-pointer text-white hover:text-primary transition-colors"
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleFileInput(e, i)}
+                            />
+                            <Upload size={14} />
+                          </label>
+
+                          {/* Move left */}
+                          {i > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => moveImage(i, i - 1)}
+                              className="text-white hover:text-primary transition-colors text-xs font-bold cursor-pointer"
+                              title="Move left"
+                            >
+                              ←
+                            </button>
+                          )}
+
+                          {/* Move right */}
+                          {i < form.images.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => moveImage(i, i + 1)}
+                              className="text-white hover:text-primary transition-colors text-xs font-bold cursor-pointer"
+                              title="Move right"
+                            >
+                              →
+                            </button>
+                          )}
+
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(i)}
+                            className="text-white hover:text-destructive transition-colors cursor-pointer"
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        {/* Uploading overlay for this slot */}
+                        {uploadingIdx === i && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <Spinner className="size-5 text-primary" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Uploading a new image appended to end */}
+                    {uploadingIdx === form.images.length && (
+                      <div className="aspect-square bg-muted border border-border flex items-center justify-center">
+                        <Spinner className="size-5 text-primary" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Drop zone */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`mt-3 border-2 border-dashed rounded-none transition-colors cursor-pointer flex flex-col items-center justify-center gap-3 py-8 px-4 ${
+                    dragOver
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50 hover:bg-muted/40"
+                  }`}
                 >
-                  <Plus size={12} /> Add image URL
-                </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFileInput(e)}
+                  />
+                  <div
+                    className={`w-10 h-10 border flex items-center justify-center transition-colors ${
+                      dragOver
+                        ? "border-primary text-primary"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    <ImageIcon size={18} />
+                  </div>
+                  <div className="text-center">
+                    <p
+                      className="text-sm font-light text-foreground"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
+                      {dragOver ? "Drop to upload" : "Drag & drop images here"}
+                    </p>
+                    <p
+                      className="text-[10px] text-muted-foreground mt-1 tracking-[0.1em] uppercase"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      or click to browse · JPG, PNG, WebP · max 10 MB each
+                    </p>
+                  </div>
+                  {uploadingIdx !== null && (
+                    <div
+                      className="flex items-center gap-2 text-xs text-primary"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      <Spinner className="size-3.5" /> Uploading…
+                    </div>
+                  )}
+                </div>
+
+                {form.images.length > 0 && (
+                  <p
+                    className="text-[10px] text-muted-foreground mt-2"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    First image is the cover. Hover an image to reorder or
+                    replace it.
+                  </p>
+                )}
               </Section>
 
-              {/* ── Specs ── */}
-              <Section title="Specifications" hint="e.g. Material: Ankara Cotton">
+              {/* ── Specifications ── */}
+              <Section
+                title="Specifications"
+                hint="e.g. Material: Ankara Cotton"
+              >
                 <div className="space-y-2">
                   {form.specs.map((spec, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                    <div
+                      key={i}
+                      className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center"
+                    >
                       <input
                         value={spec.label}
                         onChange={(e) => setSpec(i, "label", e.target.value)}
@@ -449,12 +665,20 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
               <button
                 type="submit"
                 form="product-form"
-                disabled={isSaving}
+                disabled={isSaving || uploadingIdx !== null}
                 className="px-8 py-3 text-xs tracking-[0.15em] uppercase bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2 cursor-pointer"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
-                {isSaving && <Spinner className="size-3.5" />}
-                {isSaving ? "Saving…" : isEdit ? "Save Changes" : "Create Product"}
+                {(isSaving || uploadingIdx !== null) && (
+                  <Spinner className="size-3.5" />
+                )}
+                {uploadingIdx !== null
+                  ? "Uploading…"
+                  : isSaving
+                    ? "Saving…"
+                    : isEdit
+                      ? "Save Changes"
+                      : "Create Product"}
               </button>
             </div>
           </motion.div>
@@ -464,7 +688,7 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
   );
 }
 
-/* ── Small helpers ── */
+/* ── Helpers ── */
 
 function Section({
   title,
@@ -514,7 +738,11 @@ function Field({
         style={{ fontFamily: "'Montserrat', sans-serif" }}
       >
         {label}
-        {hint && <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">{hint}</span>}
+        {hint && (
+          <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">
+            {hint}
+          </span>
+        )}
       </label>
       {children}
     </div>

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
@@ -8,12 +8,18 @@ import {
   Cog,
   Coins,
   ArrowLeft,
+  Tag,
+  BookImage,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils.ts";
+import { useAdminAuth } from "@/hooks/use-auth.ts";
 
 const NAV = [
   { label: "Overview", href: "/admin", icon: <LayoutDashboard size={15} /> },
   { label: "Products", href: "/admin/products", icon: <Package size={15} /> },
+  { label: "Categories", href: "/admin/categories", icon: <Tag size={15} /> },
+  { label: "Lookbook", href: "/admin/lookbook", icon: <BookImage size={15} /> },
   { label: "Orders", href: "/admin/orders", icon: <ShoppingBag size={15} /> },
   {
     label: "Custom Orders",
@@ -31,6 +37,13 @@ const NAV = [
 
 export default function AdminSidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAdminAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/admin/login", { replace: true });
+  };
 
   return (
     <aside className="w-56 shrink-0 border-r border-border bg-sidebar flex flex-col h-screen sticky top-0">
@@ -49,6 +62,24 @@ export default function AdminSidebar() {
           Admin Panel
         </p>
       </div>
+
+      {/* Logged-in user */}
+      {user && (
+        <div className="px-5 py-3 border-b border-border">
+          <p
+            className="text-xs text-foreground truncate"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {user.name}
+          </p>
+          <p
+            className="text-[9px] text-muted-foreground tracking-[0.1em] uppercase mt-0.5"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {user.role.replace("_", " ")}
+          </p>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -76,16 +107,22 @@ export default function AdminSidebar() {
         })}
       </nav>
 
-      {/* Back to store */}
-      <div className="px-3 py-4 border-t border-border">
+      {/* Bottom actions */}
+      <div className="px-3 py-4 border-t border-border space-y-0.5">
         <Link
           to="/"
           className="flex items-center gap-2 px-3 py-2.5 text-[10px] tracking-[0.1em] uppercase text-muted-foreground hover:text-foreground transition-colors"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
-          <ArrowLeft size={12} />
-          Back to Store
+          <ArrowLeft size={12} /> Back to Store
         </Link>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] tracking-[0.1em] uppercase text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        >
+          <LogOut size={12} /> Sign Out
+        </button>
       </div>
     </aside>
   );

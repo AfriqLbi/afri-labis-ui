@@ -232,6 +232,40 @@ export function useAdminCatalogCategories() {
   });
 }
 
+export function useAdminCreateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: unknown) => adminCatalog.createCategory(dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-catalog-categories"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
+export function useAdminUpdateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: unknown }) =>
+      adminCatalog.updateCategory(id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-catalog-categories"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
+export function useAdminDeleteCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminCatalog.deleteCategory(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-catalog-categories"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
 export function useAdminFulfilOrder() {
   const qc = useQueryClient();
   return useMutation({

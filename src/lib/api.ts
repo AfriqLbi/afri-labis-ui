@@ -2,49 +2,30 @@
  * Labi API Client
  *
  * Typed fetch wrapper for the NestJS backend at /v1/.
- * - Injects JWT access token from localStorage on every request
- * - Handles the { success, data } response envelope
- * - Exposes typed functions for every backend endpoint used by the frontend
- *
- * Token storage keys:
- *   labi_access_token   — short-lived JWT (15 min)
- *   labi_refresh_token  — long-lived refresh JWT (7 days)
- *   labi_user           — serialised user object (id, name, email, role)
+ * - Auth is handled via httpOnly cookies (set by the backend on login).
+ *   No tokens are ever stored in localStorage or JS-accessible storage.
+ * - Every request includes credentials: "include" so the browser sends cookies.
+ * - On 401 the client calls the appropriate /auth/refresh endpoint (also cookie-based)
+ *   and retries once. If refresh fails the onSessionExpired callback is invoked.
  */
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// ── Config ─────────────────────────────────────────────────────────────────────
 
 export const API_BASE =
   (import.meta.env.VITE_API_URL ?? "http://localhost:4000") + "/v1";
 
-const TOKEN_KEY = "labi_access_token";
-const REFRESH_KEY = "labi_refresh_token";
-const USER_KEY = "labi_user";
+// ── Session-expired callback ───────────────────────────────────────────────────
+// Auth providers register their own handler here so they can clear user state
+// and redirect without creating a circular import.
 
-// ── Token helpers ──────────────────────────────────────────────────────────────
+let _onCustomerSessionExpired: (() => void) | null = null;
+let _onAdminSessionExpired: (() => void) | null = null;
 
-export function getAccessToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+export function onCustomerSessionExpired(cb: () => void) {
+  _onCustomerSessionExpired = cb;
 }
-export function setTokens(access: string, refresh: string): void {
-  localStorage.setItem(TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_KEY, refresh);
-}
-export function clearTokens(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
-  localStorage.removeItem(USER_KEY);
-}
-export function getStoredUser(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
-  } catch {
-    return null;
-  }
-}
-export function setStoredUser(user: AuthUser): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+export function onAdminSessionExpired(cb: () => void) {
+  _onAdminSessionExpired = cb;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -60,9 +41,8 @@ export type AuthUser = {
   role: UserRole;
 };
 
+// Kept for legacy compatibility — no longer used for token storage
 export type AuthTokens = {
-  accessToken: string;
-  refreshToken: string;
   user: AuthUser;
 };
 
@@ -129,15 +109,10 @@ export type ApiOrder = {
   discountAmount: number;
   total: number;
   currency: string;
-  /** ISO 4217 currency the customer was charged in */
   chargeCurrency: string;
-  /** Charge amount in the minor unit of chargeCurrency */
   chargeTotal: number | null;
-  /** NGN total in kobo at order creation */
   ngnTotal: number | null;
-  /** FX rate locked at order creation (1 NGN = fxRate chargeCurrency) */
   fxRate: number;
-  /** FX buffer % applied at lock time */
   fxBuffer: number;
   promoCode: string | null;
   status:
@@ -238,7 +213,7 @@ export type Paginated<T> = {
   pages: number;
 };
 
-// ── Core fetch ─────────────────────────────────────────────────────────────────
+// ── Error class ────────────────────────────────────────────────────────────────
 
 class ApiError extends Error {
   constructor(
@@ -253,40 +228,44 @@ class ApiError extends Error {
 
 export { ApiError };
 
+// ── Core fetch ─────────────────────────────────────────────────────────────────
+
+/**
+ * `context` tells the refresh logic which cookie set to refresh when a 401 fires.
+ * "customer" → POST /auth/refresh (uses labi_token_refresh cookie)
+ * "admin"    → POST /admin/auth/refresh (uses labi_admin_token_refresh cookie)
+ * "none"     → no auto-refresh attempted
+ */
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts: { raw?: boolean; noAuth?: boolean } = {},
+  opts: { context?: "customer" | "admin" | "none" } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (!opts.noAuth) {
-    const token = getAccessToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-  }
+  const context =
+    opts.context ?? (path.startsWith("/admin") ? "admin" : "customer");
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers,
+    credentials: "include", // send cookies on every request
+    headers: { "Content-Type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  // Attempt token refresh on 401
-  if (res.status === 401 && !opts.noAuth) {
-    const refreshed = await tryRefresh();
+  if (res.status === 401 && context !== "none") {
+    const refreshed = await tryRefresh(context);
     if (refreshed) {
-      // Retry original request with new token
-      headers["Authorization"] = `Bearer ${getAccessToken()}`;
       const retry = await fetch(`${API_BASE}${path}`, {
         method,
-        headers,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
       return handleResponse<T>(retry);
     }
+    // Refresh failed — notify the relevant auth provider
+    if (context === "admin") _onAdminSessionExpired?.();
+    else _onCustomerSessionExpired?.();
   }
 
   return handleResponse<T>(res);
@@ -305,37 +284,27 @@ async function handleResponse<T>(res: Response): Promise<T> {
     if (!res.ok) throw new ApiError(res.status, res.statusText);
     throw new ApiError(res.status, "Invalid JSON response");
   }
-
-  if (!res.ok || (json && json.success === false)) {
+  if (!res.ok || json?.success === false) {
     throw new ApiError(
       res.status,
       (json?.message as string) ?? res.statusText,
       json,
     );
   }
-
   return (json?.data ?? json) as T;
 }
 
-async function tryRefresh(): Promise<boolean> {
-  const refreshToken = localStorage.getItem(REFRESH_KEY);
-  if (!refreshToken) return false;
+async function tryRefresh(context: "customer" | "admin"): Promise<boolean> {
+  const endpoint =
+    context === "admin" ? "/admin/auth/refresh" : "/auth/refresh";
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
     });
-    if (!res.ok) {
-      clearTokens();
-      return false;
-    }
-    const data = (await res.json()) as { data: AuthTokens };
-    setTokens(data.data.accessToken, data.data.refreshToken);
-    setStoredUser(data.data.user);
-    return true;
+    return res.ok;
   } catch {
-    clearTokens();
     return false;
   }
 }
@@ -359,15 +328,14 @@ export type GeoContextResponse = {
 };
 
 export const geo = {
-  /** Single call: country detection + FX rates + CurrencyConfig in one round-trip. */
   getContext() {
     return request<GeoContextResponse>("GET", "/geo/context", undefined, {
-      noAuth: true,
+      context: "none",
     });
   },
 };
 
-// ── Auth ───────────────────────────────────────────────────────────────────────
+// ── Auth — Storefront (customer) ───────────────────────────────────────────────
 
 export const auth = {
   register(dto: {
@@ -376,28 +344,49 @@ export const auth = {
     password: string;
     phone?: string;
   }) {
-    return request<AuthTokens>("POST", "/auth/register", dto, { noAuth: true });
+    return request<{ user: AuthUser }>("POST", "/auth/register", dto, {
+      context: "none",
+    });
   },
 
   login(dto: { email: string; password: string }) {
-    return request<AuthTokens>("POST", "/auth/login", dto, { noAuth: true });
-  },
-
-  refresh(refreshToken: string) {
-    return request<AuthTokens>(
-      "POST",
-      "/auth/refresh",
-      { refreshToken },
-      { noAuth: true },
-    );
+    return request<{ user: AuthUser }>("POST", "/auth/login", dto, {
+      context: "none",
+    });
   },
 
   logout() {
-    return request<void>("POST", "/auth/logout");
+    return request<void>("POST", "/auth/logout", undefined, {
+      context: "none",
+    });
   },
 
   me() {
-    return request<AuthUser>("GET", "/auth/me");
+    return request<AuthUser>("GET", "/auth/me", undefined, {
+      context: "customer",
+    });
+  },
+};
+
+// ── Auth — Admin ───────────────────────────────────────────────────────────────
+
+export const adminAuth = {
+  login(dto: { email: string; password: string }) {
+    return request<{ user: AuthUser }>("POST", "/admin/auth/login", dto, {
+      context: "none",
+    });
+  },
+
+  logout() {
+    return request<void>("POST", "/admin/auth/logout", undefined, {
+      context: "none",
+    });
+  },
+
+  me() {
+    return request<AuthUser>("GET", "/admin/auth/me", undefined, {
+      context: "admin",
+    });
   },
 };
 
@@ -429,29 +418,38 @@ export const catalog = {
     return request<Paginated<ApiProduct>>(
       "GET",
       `/catalog/products${q ? `?${q}` : ""}`,
+      undefined,
+      { context: "none" },
     );
   },
 
   getProduct(slug: string) {
-    return request<ApiProduct>("GET", `/catalog/products/${slug}`);
+    return request<ApiProduct>("GET", `/catalog/products/${slug}`, undefined, {
+      context: "none",
+    });
   },
 
   listCategories(type?: "category" | "section") {
     const q = type ? `?type=${type}` : "";
-    return request<ApiCategory[]>("GET", `/catalog/categories${q}`);
+    return request<ApiCategory[]>("GET", `/catalog/categories${q}`, undefined, {
+      context: "none",
+    });
   },
 
   getCategory(slug: string) {
-    return request<ApiCategory>("GET", `/catalog/categories/${slug}`);
+    return request<ApiCategory>(
+      "GET",
+      `/catalog/categories/${slug}`,
+      undefined,
+      { context: "none" },
+    );
   },
 };
 
 // ── Cart ───────────────────────────────────────────────────────────────────────
 
 export const cart = {
-  get(guestId?: string | null) {
-    const headers: Record<string, string> = {};
-    if (guestId) headers["X-Guest-Id"] = guestId;
+  get() {
     return request<{
       _id: string;
       userId: string | null;
@@ -468,7 +466,6 @@ export const cart = {
       discountAmount: number | null;
     }>("GET", "/cart");
   },
-
   addLine(dto: {
     productId: string;
     sku: string;
@@ -479,19 +476,15 @@ export const cart = {
   }) {
     return request<unknown>("POST", "/cart/lines", dto);
   },
-
   updateLine(dto: { productId: string; quantity: number }) {
     return request<unknown>("PATCH", "/cart/lines", dto);
   },
-
   removeLine(productId: string) {
     return request<unknown>("DELETE", `/cart/lines/${productId}`);
   },
-
   clear() {
     return request<unknown>("DELETE", "/cart");
   },
-
   merge() {
     return request<unknown>("POST", "/cart/merge");
   },
@@ -507,9 +500,7 @@ export const orders = {
     paymentProvider: "paystack" | "flutterwave" | "stripe";
     shippingAddress: ShippingAddress;
     promoCode?: string;
-    /** ISO 4217 charge currency. Omit for NGN. */
     chargeCurrency?: string;
-    /** FX snapshot from CurrencyProvider. Required for non-NGN orders. */
     fxRateSnapshot?: { rate: number; buffer: number };
   }) {
     return request<{ order: ApiOrder; checkoutUrl: string; reference: string }>(
@@ -518,18 +509,15 @@ export const orders = {
       dto,
     );
   },
-
   mine(page = 1, limit = 20) {
     return request<Paginated<ApiOrder>>(
       "GET",
       `/orders/mine?page=${page}&limit=${limit}`,
     );
   },
-
   get(id: string) {
     return request<ApiOrder>("GET", `/orders/${id}`);
   },
-
   getProductionHistory(orderId: string) {
     return request<{
       currentStage: string | null;
@@ -570,18 +558,15 @@ export const customOrders = {
   }) {
     return request<ApiCustomOrder>("POST", "/custom-orders", dto);
   },
-
   mine(page = 1, limit = 20) {
     return request<Paginated<ApiCustomOrder>>(
       "GET",
       `/custom-orders/mine?page=${page}&limit=${limit}`,
     );
   },
-
   get(id: string) {
     return request<ApiCustomOrder>("GET", `/custom-orders/${id}`);
   },
-
   approveQuote(id: string, paymentProvider: "paystack" | "flutterwave") {
     return request<{ checkoutUrl: string; paymentReference: string }>(
       "POST",
@@ -597,11 +582,9 @@ export const measurements = {
   list() {
     return request<ApiMeasurementProfile[]>("GET", "/measurements");
   },
-
   get(id: string) {
     return request<ApiMeasurementProfile>("GET", `/measurements/${id}`);
   },
-
   create(dto: {
     garmentType: string;
     garmentLabel?: string;
@@ -610,7 +593,6 @@ export const measurements = {
   }) {
     return request<ApiMeasurementProfile>("POST", "/measurements", dto);
   },
-
   update(
     id: string,
     dto: Partial<{
@@ -622,9 +604,35 @@ export const measurements = {
   ) {
     return request<ApiMeasurementProfile>("PATCH", `/measurements/${id}`, dto);
   },
-
   remove(id: string) {
     return request<void>("DELETE", `/measurements/${id}`);
+  },
+};
+
+// ── Admin: Media ───────────────────────────────────────────────────────────────
+
+export const adminMedia = {
+  async upload(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${API_BASE}/admin/media/upload`, {
+      method: "POST",
+      credentials: "include", // sends labi_admin_token cookie
+      body: formData,
+      // No Content-Type header — browser sets multipart/form-data with boundary
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        (err as { message?: string }).message ??
+          `Upload failed (${res.status})`,
+      );
+    }
+    const json = (await res.json()) as {
+      success: boolean;
+      data: { secureUrl: string };
+    };
+    return json.data.secureUrl;
   },
 };
 
@@ -642,36 +650,42 @@ export const adminCatalog = {
       `/admin/catalog/products${q ? `?${q}` : ""}`,
     );
   },
-
   createProduct(dto: unknown) {
     return request<ApiProduct>("POST", "/admin/catalog/products", dto);
   },
-
   updateProduct(id: string, dto: unknown) {
     return request<ApiProduct>("PATCH", `/admin/catalog/products/${id}`, dto);
   },
-
   deleteProduct(id: string) {
     return request<void>("DELETE", `/admin/catalog/products/${id}`);
   },
-
   toggleTag(id: string, tag: string) {
     return request<ApiProduct>(
       "PATCH",
       `/admin/catalog/products/${id}/tags/${tag}`,
     );
   },
-
   setStock(dto: { productId: string; stock: number }) {
     return request<unknown>("PATCH", "/admin/inventory/stock", dto);
   },
-
   lowStock() {
     return request<ApiProduct[]>("GET", "/admin/inventory/low-stock");
   },
-
   listCategories() {
     return request<ApiCategory[]>("GET", "/admin/catalog/categories");
+  },
+  createCategory(dto: unknown) {
+    return request<ApiCategory>("POST", "/admin/catalog/categories", dto);
+  },
+  updateCategory(id: string, dto: unknown) {
+    return request<ApiCategory>(
+      "PATCH",
+      `/admin/catalog/categories/${id}`,
+      dto,
+    );
+  },
+  deleteCategory(id: string) {
+    return request<void>("DELETE", `/admin/catalog/categories/${id}`);
   },
 };
 
@@ -689,19 +703,15 @@ export const adminOrders = {
       `/admin/orders${q ? `?${q}` : ""}`,
     );
   },
-
   get(id: string) {
     return request<ApiOrder>("GET", `/admin/orders/${id}`);
   },
-
   fulfil(id: string) {
     return request<ApiOrder>("PATCH", `/admin/orders/${id}/fulfil`);
   },
-
   cancel(id: string) {
     return request<ApiOrder>("PATCH", `/admin/orders/${id}/cancel`);
   },
-
   updateProductionStage(id: string, stage: string, note?: string) {
     return request<ApiOrder>("PATCH", `/admin/orders/${id}/production-stage`, {
       stage,
@@ -730,11 +740,9 @@ export const adminCustomOrders = {
       `/admin/custom-orders${q ? `?${q}` : ""}`,
     );
   },
-
   get(id: string) {
     return request<ApiCustomOrder>("GET", `/admin/custom-orders/${id}`);
   },
-
   setQuote(
     id: string,
     dto: {
@@ -749,21 +757,18 @@ export const adminCustomOrders = {
       dto,
     );
   },
-
   moveToProduction(id: string) {
     return request<ApiCustomOrder>(
       "PATCH",
       `/admin/custom-orders/${id}/production`,
     );
   },
-
   markCompleted(id: string) {
     return request<ApiCustomOrder>(
       "PATCH",
       `/admin/custom-orders/${id}/complete`,
     );
   },
-
   updateStatus(id: string, status: "cancelled" | "refunded", note?: string) {
     return request<ApiCustomOrder>(
       "PATCH",
@@ -784,7 +789,6 @@ export const adminAnalytics = {
       pendingCount: number;
       lowStockCount: number;
     }>("GET", "/admin/analytics/metrics");
-    // Normalise field names and convert kobo → naira
     return {
       totalRevenue: (raw.revenueBase ?? 0) / 100,
       totalOrders: raw.orderCount ?? 0,
@@ -793,22 +797,18 @@ export const adminAnalytics = {
       lowStockCount: raw.lowStockCount ?? 0,
     };
   },
-
   async revenueSeries(months = 6) {
     const rows = await request<
       { month: string; revenue: number; orders: number }[]
     >("GET", `/admin/analytics/revenue-series?months=${months}`);
-    // revenue from the backend is in kobo — convert to naira for chart display
     return rows.map((r) => ({ ...r, revenue: (r.revenue ?? 0) / 100 }));
   },
-
   categoryMix() {
     return request<{ category: string; revenue: number; percentage: number }[]>(
       "GET",
       "/admin/analytics/category-mix",
     );
   },
-
   topProducts() {
     return request<
       { productId: string; title: string; revenue: number; units: number }[]
@@ -837,7 +837,6 @@ export const adminCurrencyConfig = {
   get() {
     return request<ApiCurrencyConfig>("GET", "/admin/currency-config");
   },
-
   update(dto: Partial<Omit<ApiCurrencyConfig, "configKey" | "updatedAt">>) {
     return request<ApiCurrencyConfig>("PATCH", "/admin/currency-config", dto);
   },
