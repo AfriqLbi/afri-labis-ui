@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
@@ -24,10 +24,14 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (isAuthenticated) {
-    navigate(redirect, { replace: true });
-    return null;
-  }
+  // Already signed in — redirect in an effect, never during render
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(redirect, { replace: true });
+    }
+  }, [isAuthenticated, navigate, redirect]);
+
+  if (isAuthenticated) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +48,12 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(form.name, form.email, form.password, form.phone || undefined);
+      await register(
+        form.name,
+        form.email,
+        form.password,
+        form.phone.trim() || undefined,
+      );
       toast.success("Account created — welcome to Labi!");
       navigate(redirect, { replace: true });
     } catch (err) {
@@ -59,8 +68,9 @@ export default function RegisterPage() {
     }
   };
 
-  const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [field]: e.target.value });
+  const set =
+    (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm({ ...form, [field]: e.target.value });
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -161,7 +171,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="field-label">Password * (min. 8 characters)</label>
+              <label className="field-label">
+                Password * (min. 8 characters)
+              </label>
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}

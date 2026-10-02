@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ShoppingBag, Search, Menu, X, User } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "@/hooks/use-cart.tsx";
 import { useAuth } from "@/hooks/use-auth.ts";
 import {
@@ -21,8 +21,37 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { itemCount, openCart } = useCart();
   const { signinRedirect } = useAuth();
+  const navigate = useNavigate();
+
+  // Focus the input whenever the overlay opens
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [searchOpen]);
+
+  // Close overlay on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearchOpen(false);
+    setSearchQuery("");
+    navigate(`/shop?q=${encodeURIComponent(q)}`);
+  };
 
   return (
     <>
@@ -57,7 +86,11 @@ export default function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-4">
-            <button className="text-foreground hover:text-primary transition-colors cursor-pointer">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="text-foreground hover:text-primary transition-colors cursor-pointer"
+              aria-label="Search"
+            >
               <Search size={18} />
             </button>
 
@@ -102,6 +135,71 @@ export default function Header() {
           </div>
         </div>
       </header>
+
+      {/* ── Search overlay ── */}
+      <AnimatePresence>
+        {searchOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/70 z-[60]"
+              onClick={() => setSearchOpen(false)}
+            />
+            {/* Search bar */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.25 }}
+              className="fixed top-0 left-0 right-0 z-[70] bg-background border-b border-border px-6 py-5"
+            >
+              <form
+                onSubmit={handleSearchSubmit}
+                className="max-w-2xl mx-auto flex items-center gap-4"
+              >
+                <Search size={18} className="text-primary shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search pieces, fabrics, styles…"
+                  className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-lg font-light focus:outline-none"
+                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Close search"
+                >
+                  <X size={20} />
+                </button>
+              </form>
+              <p
+                className="max-w-2xl mx-auto mt-3 pl-[34px] text-[10px] tracking-[0.2em] uppercase text-muted-foreground"
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                Press Enter to search · Esc to close
+              </p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Nav */}
       <AnimatePresence>

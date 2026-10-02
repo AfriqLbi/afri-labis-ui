@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
@@ -64,12 +64,28 @@ export default function ShopPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const sortRef = useRef<HTMLDivElement>(null);
 
-  // Sync category from URL query param
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [sortOpen]);
+
+  // Sync category + search query from URL
   useEffect(() => {
     const cat = searchParams.get("category");
     if (cat) setCategory(cat);
+    else setCategory("all");
   }, [searchParams]);
+
+  const searchQuery = searchParams.get("q") ?? undefined;
 
   const priceConfig =
     PRICE_RANGES.find((p) => p.id === priceRange) ?? PRICE_RANGES[0];
@@ -85,6 +101,7 @@ export default function ShopPage() {
           : undefined;
 
   const { data, isLoading, isError } = useProducts({
+    q: searchQuery,
     categorySlug: category !== "all" ? category : undefined,
     min: priceConfig.min,
     max: priceConfig.max,
@@ -137,7 +154,7 @@ export default function ShopPage() {
               className="text-5xl md:text-6xl font-light text-foreground"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              All Collections
+              {searchQuery ? `"${searchQuery}"` : "All Collections"}
             </h1>
           </div>
           <p
@@ -216,7 +233,7 @@ export default function ShopPage() {
           </div>
 
           {/* Sort */}
-          <div className="relative">
+          <div className="relative" ref={sortRef}>
             <button
               onClick={() => setSortOpen(!sortOpen)}
               className="flex items-center gap-2 border border-border px-4 py-2.5 text-xs tracking-[0.15em] uppercase text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
@@ -399,7 +416,10 @@ export default function ShopPage() {
                     {PRICE_RANGES.map((p) => (
                       <button
                         key={p.id}
-                        onClick={() => setPriceRange(p.id)}
+                        onClick={() => {
+                          setPriceRange(p.id);
+                          setDrawerOpen(false);
+                        }}
                         className={`w-full text-left text-sm py-1 transition-colors cursor-pointer ${
                           priceRange === p.id
                             ? "text-primary"

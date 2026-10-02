@@ -655,12 +655,23 @@ export const adminCatalog = {
     return request<void>("DELETE", `/admin/catalog/products/${id}`);
   },
 
+  toggleTag(id: string, tag: string) {
+    return request<ApiProduct>(
+      "PATCH",
+      `/admin/catalog/products/${id}/tags/${tag}`,
+    );
+  },
+
   setStock(dto: { productId: string; stock: number }) {
     return request<unknown>("PATCH", "/admin/inventory/stock", dto);
   },
 
   lowStock() {
     return request<ApiProduct[]>("GET", "/admin/inventory/low-stock");
+  },
+
+  listCategories() {
+    return request<ApiCategory[]>("GET", "/admin/catalog/categories");
   },
 };
 

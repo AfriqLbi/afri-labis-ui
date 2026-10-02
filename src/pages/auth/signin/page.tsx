@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
@@ -19,11 +19,14 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Already signed in
-  if (isAuthenticated) {
-    navigate(redirect, { replace: true });
-    return null;
-  }
+  // Already signed in — redirect in an effect, never during render
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(redirect, { replace: true });
+    }
+  }, [isAuthenticated, navigate, redirect]);
+
+  if (isAuthenticated) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

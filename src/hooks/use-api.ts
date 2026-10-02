@@ -16,7 +16,9 @@ import {
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
 
-export function useProducts(params?: Parameters<typeof catalog.listProducts>[0]) {
+export function useProducts(
+  params?: Parameters<typeof catalog.listProducts>[0],
+) {
   return useQuery({
     queryKey: ["products", params],
     queryFn: () => catalog.listProducts(params),
@@ -100,7 +102,9 @@ export function useMeasurementProfiles() {
 
 // ── Admin: Orders ─────────────────────────────────────────────────────────────
 
-export function useAdminOrders(params?: Parameters<typeof adminOrders.list>[0]) {
+export function useAdminOrders(
+  params?: Parameters<typeof adminOrders.list>[0],
+) {
   return useQuery({
     queryKey: ["admin-orders", params],
     queryFn: () => adminOrders.list(params),
@@ -108,7 +112,9 @@ export function useAdminOrders(params?: Parameters<typeof adminOrders.list>[0]) 
   });
 }
 
-export function useAdminCustomOrders(params?: Parameters<typeof adminCustomOrders.list>[0]) {
+export function useAdminCustomOrders(
+  params?: Parameters<typeof adminCustomOrders.list>[0],
+) {
   return useQuery({
     queryKey: ["admin-custom-orders", params],
     queryFn: () => adminCustomOrders.list(params),
@@ -152,7 +158,9 @@ export function useAdminTopProducts() {
 
 // ── Admin: Products ───────────────────────────────────────────────────────────
 
-export function useAdminProducts(params?: Parameters<typeof adminCatalog.listProducts>[0]) {
+export function useAdminProducts(
+  params?: Parameters<typeof adminCatalog.listProducts>[0],
+) {
   return useQuery({
     queryKey: ["admin-products", params],
     queryFn: () => adminCatalog.listProducts(params),
@@ -182,6 +190,48 @@ export function useAdminSetStock() {
   });
 }
 
+export function useAdminCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: unknown) => adminCatalog.createProduct(dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-products"] }),
+  });
+}
+
+export function useAdminUpdateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: unknown }) =>
+      adminCatalog.updateProduct(id, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-products"] }),
+  });
+}
+
+export function useAdminDeleteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminCatalog.deleteProduct(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-products"] }),
+  });
+}
+
+export function useAdminToggleTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, tag }: { id: string; tag: string }) =>
+      adminCatalog.toggleTag(id, tag),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-products"] }),
+  });
+}
+
+export function useAdminCatalogCategories() {
+  return useQuery({
+    queryKey: ["admin-catalog-categories"],
+    queryFn: () => adminCatalog.listCategories(),
+    staleTime: 300_000,
+  });
+}
+
 export function useAdminFulfilOrder() {
   const qc = useQueryClient();
   return useMutation({
@@ -201,8 +251,15 @@ export function useAdminCancelOrder() {
 export function useAdminUpdateProductionStage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, stage, note }: { id: string; stage: string; note?: string }) =>
-      adminOrders.updateProductionStage(id, stage, note),
+    mutationFn: ({
+      id,
+      stage,
+      note,
+    }: {
+      id: string;
+      stage: string;
+      note?: string;
+    }) => adminOrders.updateProductionStage(id, stage, note),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-orders"] });
       qc.invalidateQueries({ queryKey: ["production-history"] });
@@ -220,7 +277,8 @@ export function useAdminSetCustomOrderQuote() {
       id: string;
       dto: Parameters<typeof adminCustomOrders.setQuote>[1];
     }) => adminCustomOrders.setQuote(id, dto),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
   });
 }
 
@@ -228,6 +286,7 @@ export function useAdminMoveCustomOrderToProduction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => adminCustomOrders.moveToProduction(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
   });
 }

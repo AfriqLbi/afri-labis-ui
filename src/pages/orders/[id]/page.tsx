@@ -3,7 +3,6 @@ import { motion } from "motion/react";
 import {
   Package,
   Scissors,
-  Spool,
   CheckCircle,
   Truck,
   Home,
@@ -11,32 +10,73 @@ import {
   MapPin,
   Calendar,
   MessageCircle,
+  Spool,
 } from "lucide-react";
-import {
-  getOrderById,
-  type ProductionStage,
-  type StageEntry,
-} from "@/lib/mock-orders.ts";
+import { useOrder } from "@/hooks/use-api.ts";
 import { formatPrice } from "@/lib/products.ts";
+import { formatMinorUnits } from "@/lib/currency.ts";
+import { Spinner } from "@/components/ui/spinner.tsx";
 import Header from "../_components/Header.tsx";
 import Footer from "../_components/Footer.tsx";
-import { formatMinorUnits } from "@/lib/currency.ts";
+import type { ApiOrder } from "@/lib/api.ts";
 
-/* ── Stage config ── */
+// ── WhatsApp number (replace with real number or load from env) ───────────────
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2348000000000";
 
-const STAGE_CONFIG: Record<
-  ProductionStage,
-  { icon: React.ReactNode; color: string }
-> = {
-  received: { icon: <Package size={16} />, color: "text-primary" },
-  cutting: { icon: <Scissors size={16} />, color: "text-primary" },
-  sewing: { icon: <Spool size={16} />, color: "text-primary" },
-  quality_check: { icon: <CheckCircle size={16} />, color: "text-primary" },
-  ready: { icon: <Package size={16} />, color: "text-primary" },
-  delivered: { icon: <Truck size={16} />, color: "text-primary" },
+// ── Production stage ordering ─────────────────────────────────────────────────
+type Stage = {
+  key: ApiOrder["productionStage"] | "received";
+  label: string;
+  description: string;
+  icon: React.ReactNode;
 };
 
-const WHATSAPP_NUMBER = "2348000000000"; // configurable
+const STAGES: Stage[] = [
+  {
+    key: "received",
+    label: "Order Received",
+    description: "Your order has been confirmed and is queued for production.",
+    icon: <Package size={15} />,
+  },
+  {
+    key: "cutting",
+    label: "Cutting",
+    description: "Fabric is being measured and cut to your specifications.",
+    icon: <Scissors size={15} />,
+  },
+  {
+    key: "sewing",
+    label: "Sewing",
+    description: "Our artisans are assembling your garment.",
+    icon: <Spool size={15} />,
+  },
+  {
+    key: "quality_check",
+    label: "Quality Check",
+    description: "Final inspection to ensure every detail meets our standard.",
+    icon: <CheckCircle size={15} />,
+  },
+  {
+    key: "ready",
+    label: "Ready",
+    description: "Your order is packed and ready for dispatch.",
+    icon: <Package size={15} />,
+  },
+  {
+    key: "delivered",
+    label: "Delivered",
+    description: "Your order is on its way or has been delivered.",
+    icon: <Truck size={15} />,
+  },
+];
+
+// Map API status → display stage key
+function resolveStageKey(order: ApiOrder): Stage["key"] {
+  if (order.status === "fulfilled") return "delivered";
+  if (order.productionStage) return order.productionStage;
+  if (order.status === "paid") return "received";
+  return "received";
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-NG", {
@@ -46,21 +86,37 @@ function formatDate(iso: string) {
   });
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-NG", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatAddr(addr: ApiOrder["shippingAddress"]): string {
+  return [addr.line1, addr.line2, addr.city, addr.state, addr.country]
+    .filter(Boolean)
+    .join(", ");
 }
+
+// ── Status badge label ────────────────────────────────────────────────────────
+const STATUS_LABELS: Partial<Record<ApiOrder["status"], string>> = {
+  pending_payment: "Awaiting Payment",
+  paid: "Order Confirmed",
+  fulfilled: "Delivered",
+  cancelled: "Cancelled",
+  failed: "Payment Failed",
+};
 
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
-  const order = id ? getOrderById(id) : null;
+  const { data: order, isLoading, isError } = useOrder(id ?? "");
 
-  if (!order) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="pt-[65px] flex items-center justify-center min-h-[70vh]">
+          <Spinner className="size-8 text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !order) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -76,12 +132,12 @@ export default function OrderTrackingPage() {
               className="text-xs tracking-wide text-muted-foreground"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
-              Order ID <span className="text-primary">{id}</span> could not be
+              Order <span className="text-primary">{id}</span> could not be
               located.
             </p>
             <Link
               to="/shop"
-              className="inline-flex items-center gap-2 text-xs tracking-[0.2em] uppercase text-primary underline underline-offset-4 cursor-pointer"
+              className="inline-flex items-center gap-2 text-xs tracking-[0.2em] uppercase text-primary underline underline-offset-4"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               <ArrowLeft size={12} /> Back to Shop
@@ -93,9 +149,20 @@ export default function OrderTrackingPage() {
     );
   }
 
-  const stageIndex = order.stages.findIndex(
-    (s) => s.stage === order.currentStage,
+  const currentStageKey = resolveStageKey(order);
+  const currentIdx = STAGES.findIndex((s) => s.key === currentStageKey);
+  const progressPct = Math.round(((currentIdx + 1) / STAGES.length) * 100);
+  const statusLabel =
+    order.productionStage === "cutting" ||
+    order.productionStage === "sewing" ||
+    order.productionStage === "quality_check"
+      ? "In Production"
+      : (STATUS_LABELS[order.status] ?? "Order Confirmed");
+
+  const whatsappText = encodeURIComponent(
+    `Hi LABI, I have a question about my order ${order.orderNumber}`,
   );
+  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappText}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,17 +182,17 @@ export default function OrderTrackingPage() {
                 className="text-4xl font-light text-foreground"
                 style={{ fontFamily: "'Cormorant Garamond', serif" }}
               >
-                {order.id}
+                {order.orderNumber}
               </h1>
               <p
                 className="text-muted-foreground mt-1 text-sm font-light"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
-                Placed {formatDate(order.placedAt)}
+                Placed {formatDate(order.createdAt)}
               </p>
             </div>
             <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20LABI%2C%20I%20have%20a%20question%20about%20my%20order%20${order.id}`}
+              href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 border border-[#25D366] text-[#25D366] px-5 py-3 text-xs tracking-[0.15em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer self-start sm:self-auto"
@@ -139,7 +206,7 @@ export default function OrderTrackingPage() {
 
         <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid lg:grid-cols-[1fr_360px] gap-12">
-            {/* Left column — timeline + note */}
+            {/* Left — timeline */}
             <div className="space-y-10">
               {/* Status badge */}
               <div className="flex items-center gap-3">
@@ -148,109 +215,175 @@ export default function OrderTrackingPage() {
                   className="text-xs tracking-[0.2em] uppercase text-primary font-semibold"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
-                  {order.status === "in_production"
-                    ? "In Production"
-                    : order.status === "ready"
-                      ? "Ready for Delivery"
-                      : order.status === "delivered"
-                        ? "Delivered"
-                        : "Order Confirmed"}
+                  {statusLabel}
                 </span>
               </div>
 
               {/* Progress bar */}
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span
-                    className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
-                  >
-                    Production Progress
-                  </span>
-                  <span
-                    className="text-[10px] tracking-[0.15em] uppercase text-primary"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
-                  >
-                    {stageIndex + 1} / {order.stages.length} stages
-                  </span>
+              {order.status === "paid" || order.status === "fulfilled" ? (
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span
+                      className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      Production Progress
+                    </span>
+                    <span
+                      className="text-[10px] tracking-[0.15em] uppercase text-primary"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      {currentIdx + 1} / {STAGES.length} stages
+                    </span>
+                  </div>
+                  <div className="h-1 bg-muted w-full">
+                    <motion.div
+                      className="h-full bg-primary"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPct}%` }}
+                      transition={{
+                        duration: 1.2,
+                        ease: "easeOut",
+                        delay: 0.2,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1 bg-muted w-full">
-                  <motion.div
-                    className="h-full bg-primary"
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${((stageIndex + 1) / order.stages.length) * 100}%`,
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      ease: "easeOut" as const,
-                      delay: 0.2,
-                    }}
-                  />
-                </div>
-              </div>
+              ) : null}
 
-              {/* Tracker note */}
-              {order.trackingNote && (
+              {/* Pending payment notice */}
+              {order.status === "pending_payment" && order.checkoutUrl && (
                 <div className="bg-primary/5 border border-primary/20 px-5 py-4 flex gap-3 items-start">
                   <div className="w-2 h-2 bg-primary mt-1 shrink-0" />
-                  <p
-                    className="text-sm font-light text-foreground leading-relaxed"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    {order.trackingNote}
-                  </p>
+                  <div>
+                    <p
+                      className="text-sm font-light text-foreground leading-relaxed mb-2"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
+                      Your order is awaiting payment. Complete payment to begin
+                      production.
+                    </p>
+                    <a
+                      href={order.checkoutUrl}
+                      className="text-xs tracking-[0.2em] uppercase text-primary underline underline-offset-4"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      Complete Payment →
+                    </a>
+                  </div>
                 </div>
               )}
 
-              {/* Timeline */}
-              <div>
-                <p
-                  className="text-[10px] tracking-[0.3em] uppercase text-muted-foreground mb-6 font-semibold"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  Production Timeline
-                </p>
-                <div className="relative">
-                  {/* Vertical line */}
-                  <div className="absolute left-[15px] top-0 bottom-0 w-[1px] bg-border" />
-
-                  <div className="space-y-0">
-                    {order.stages.map((stage, i) => (
-                      <TimelineStage
-                        key={stage.stage}
-                        stage={stage}
-                        index={i}
-                        stageIndex={stageIndex}
-                        isLast={i === order.stages.length - 1}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Estimated delivery */}
-              <div className="flex items-start gap-4 border border-border px-5 py-5">
-                <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <Calendar size={16} className="text-primary" />
-                </div>
+              {/* Production timeline */}
+              {(order.status === "paid" || order.status === "fulfilled") && (
                 <div>
                   <p
-                    className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1"
+                    className="text-[10px] tracking-[0.3em] uppercase text-muted-foreground mb-6 font-semibold"
                     style={{ fontFamily: "'Montserrat', sans-serif" }}
                   >
-                    Estimated Ready
+                    Production Timeline
                   </p>
-                  <p
-                    className="text-xl font-light text-foreground"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    {formatDate(order.estimatedReady)}
-                  </p>
+                  <div className="relative">
+                    <div className="absolute left-[15px] top-0 bottom-0 w-[1px] bg-border" />
+                    <div className="space-y-0">
+                      {STAGES.map((stage, i) => {
+                        const isCompleted = i < currentIdx;
+                        const isCurrent = i === currentIdx;
+                        const isPending = i > currentIdx;
+                        return (
+                          <motion.div
+                            key={stage.key}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.07, duration: 0.4 }}
+                            className={`relative flex gap-5 ${i < STAGES.length - 1 ? "pb-8" : ""}`}
+                          >
+                            <div className="relative z-10 shrink-0">
+                              <div
+                                className={`w-8 h-8 flex items-center justify-center border-2 transition-all ${
+                                  isCompleted
+                                    ? "bg-primary border-primary text-primary-foreground"
+                                    : isCurrent
+                                      ? "bg-primary/10 border-primary text-primary"
+                                      : "bg-background border-border text-muted-foreground"
+                                }`}
+                              >
+                                {isCompleted ? (
+                                  <CheckCircle
+                                    size={14}
+                                    className="text-primary-foreground"
+                                  />
+                                ) : (
+                                  <span className="text-current">
+                                    {stage.icon}
+                                  </span>
+                                )}
+                              </div>
+                              {isCurrent && (
+                                <div className="absolute inset-0 border-2 border-primary animate-ping opacity-30" />
+                              )}
+                            </div>
+                            <div
+                              className={`pt-1 pb-2 ${isPending ? "opacity-40" : ""}`}
+                            >
+                              <p
+                                className={`text-xs font-semibold tracking-wide mb-0.5 ${
+                                  isCompleted || isCurrent
+                                    ? "text-foreground"
+                                    : "text-muted-foreground"
+                                }`}
+                                style={{
+                                  fontFamily: "'Montserrat', sans-serif",
+                                }}
+                              >
+                                {stage.label}
+                                {isCurrent && (
+                                  <span className="ml-2 text-[9px] tracking-[0.2em] uppercase text-primary bg-primary/10 px-2 py-0.5">
+                                    Current
+                                  </span>
+                                )}
+                              </p>
+                              <p
+                                className="text-sm text-muted-foreground font-light leading-relaxed"
+                                style={{
+                                  fontFamily: "'Cormorant Garamond', serif",
+                                }}
+                              >
+                                {stage.description}
+                              </p>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Delivery address */}
+              {/* Estimated delivery */}
+              {order.fulfilledAt && (
+                <div className="flex items-start gap-4 border border-border px-5 py-5">
+                  <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Calendar size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <p
+                      className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      Delivered
+                    </p>
+                    <p
+                      className="text-xl font-light text-foreground"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
+                      {formatDate(order.fulfilledAt)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Shipping address */}
               <div className="flex items-start gap-4 border border-border px-5 py-5">
                 <div className="w-10 h-10 bg-muted/60 border border-border flex items-center justify-center shrink-0">
                   <MapPin size={16} className="text-muted-foreground" />
@@ -266,24 +399,19 @@ export default function OrderTrackingPage() {
                     className="text-base font-light text-foreground leading-snug"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
-                    {order.shippingAddress}
+                    {order.shippingAddress.fullName}
                   </p>
                   <p
-                    className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wide"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    className="text-sm font-light text-muted-foreground leading-snug mt-0.5"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
-                    {order.shippingMethod === "express"
-                      ? "Express Delivery"
-                      : "Standard Delivery"}
-                    {order.shippingCost === 0
-                      ? " · Free"
-                      : ` · ${formatPrice(order.shippingCost)}`}
+                    {formatAddr(order.shippingAddress)}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Right column — order summary */}
+            {/* Right — order summary */}
             <div className="space-y-6">
               <div className="bg-card border border-border p-6">
                 <p
@@ -295,31 +423,33 @@ export default function OrderTrackingPage() {
                 <div className="space-y-4 mb-5">
                   {order.items.map((item, i) => (
                     <div key={i} className="flex gap-3">
-                      <div className="w-16 h-20 shrink-0 overflow-hidden">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="w-16 h-20 shrink-0 overflow-hidden bg-muted">
+                        {item.image && (
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p
                           className="text-sm font-light text-foreground leading-snug"
                           style={{ fontFamily: "'Cormorant Garamond', serif" }}
                         >
-                          {item.name}
+                          {item.title}
                         </p>
                         <p
                           className="text-[10px] tracking-wide text-muted-foreground mt-0.5 uppercase"
                           style={{ fontFamily: "'Montserrat', sans-serif" }}
                         >
-                          {item.color} · {item.size}
+                          Qty {item.qty} · {item.sku}
                         </p>
                         <p
                           className="text-sm font-semibold text-primary mt-1"
                           style={{ fontFamily: "'Montserrat', sans-serif" }}
                         >
-                          {formatPrice(item.price * item.quantity)}
+                          {formatPrice(item.unitPrice * item.qty)}
                         </p>
                       </div>
                     </div>
@@ -342,22 +472,22 @@ export default function OrderTrackingPage() {
                       {formatPrice(order.subtotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span
-                      className="text-xs uppercase tracking-wide text-muted-foreground"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      Shipping
-                    </span>
-                    <span
-                      className="text-sm text-foreground"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      {order.shippingCost === 0
-                        ? "Free"
-                        : formatPrice(order.shippingCost)}
-                    </span>
-                  </div>
+                  {order.discountAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span
+                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        Discount
+                      </span>
+                      <span
+                        className="text-sm text-primary"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        −{formatPrice(order.discountAmount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-2 border-t border-border">
                     <span
                       className="text-xs uppercase tracking-[0.15em] text-foreground font-semibold"
@@ -366,18 +496,17 @@ export default function OrderTrackingPage() {
                       Total
                     </span>
                     <div className="text-right">
-                      {/* Show chargeTotal in chargeCurrency for real API orders */}
-                      {(order as any).chargeTotal &&
-                      (order as any).chargeCurrency &&
-                      (order as any).chargeCurrency !== "NGN" ? (
+                      {order.chargeTotal &&
+                      order.chargeCurrency &&
+                      order.chargeCurrency !== "NGN" ? (
                         <>
                           <span
                             className="text-xl font-semibold text-primary block"
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
                           >
                             {formatMinorUnits(
-                              (order as any).chargeTotal,
-                              (order as any).chargeCurrency,
+                              order.chargeTotal,
+                              order.chargeCurrency,
                             )}
                           </span>
                           <span
@@ -409,7 +538,7 @@ export default function OrderTrackingPage() {
                   Need Help?
                 </p>
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20LABI%2C%20I%20have%20a%20question%20about%20my%20order%20${order.id}`}
+                  href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full border border-[#25D366] text-[#25D366] py-3 text-xs tracking-[0.15em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer"
@@ -431,102 +560,5 @@ export default function OrderTrackingPage() {
       </div>
       <Footer />
     </div>
-  );
-}
-
-/* ── Timeline Stage Component ── */
-
-function TimelineStage({
-  stage,
-  index,
-  stageIndex,
-  isLast,
-}: {
-  stage: StageEntry;
-  index: number;
-  stageIndex: number;
-  isLast: boolean;
-}) {
-  const isCompleted = index < stageIndex;
-  const isCurrent = index === stageIndex;
-  const isPending = index > stageIndex;
-
-  const cfg = STAGE_CONFIG[stage.stage];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{
-        delay: index * 0.08,
-        duration: 0.4,
-        ease: "easeOut" as const,
-      }}
-      className={`relative flex gap-5 ${isLast ? "" : "pb-8"}`}
-    >
-      {/* Icon node */}
-      <div className="relative z-10 shrink-0">
-        <div
-          className={`w-8 h-8 flex items-center justify-center border-2 transition-all ${
-            isCompleted
-              ? "bg-primary border-primary text-primary-foreground"
-              : isCurrent
-                ? "bg-primary/10 border-primary text-primary"
-                : "bg-background border-border text-muted-foreground"
-          }`}
-        >
-          {isCompleted ? (
-            <CheckCircle size={14} className="text-primary-foreground" />
-          ) : (
-            <span className={cfg.color}>{cfg.icon}</span>
-          )}
-        </div>
-        {/* Pulse for active */}
-        {isCurrent && (
-          <div className="absolute inset-0 border-2 border-primary animate-ping opacity-30" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className={`pt-1 pb-2 ${isPending ? "opacity-40" : ""}`}>
-        <p
-          className={`text-xs font-semibold tracking-wide mb-0.5 ${
-            isCompleted || isCurrent
-              ? "text-foreground"
-              : "text-muted-foreground"
-          }`}
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-          {stage.label}
-          {isCurrent && (
-            <span className="ml-2 text-[9px] tracking-[0.2em] uppercase text-primary bg-primary/10 px-2 py-0.5">
-              Current
-            </span>
-          )}
-        </p>
-        <p
-          className="text-sm text-muted-foreground font-light leading-relaxed"
-          style={{ fontFamily: "'Cormorant Garamond', serif" }}
-        >
-          {stage.description}
-        </p>
-        {stage.completedAt && (
-          <p
-            className="text-[10px] text-muted-foreground/70 mt-1"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Completed {formatDateTime(stage.completedAt)}
-          </p>
-        )}
-        {!stage.completedAt && stage.estimatedAt && (
-          <p
-            className="text-[10px] text-muted-foreground/50 mt-1"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Est. {formatDate(stage.estimatedAt)}
-          </p>
-        )}
-      </div>
-    </motion.div>
   );
 }
