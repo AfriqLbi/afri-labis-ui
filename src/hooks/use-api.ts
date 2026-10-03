@@ -12,6 +12,8 @@ import {
   adminCustomOrders,
   adminAnalytics,
   adminCatalog,
+  lookbook,
+  adminLookbook,
 } from "@/lib/api.ts";
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
@@ -322,5 +324,72 @@ export function useAdminMoveCustomOrderToProduction() {
     mutationFn: (id: string) => adminCustomOrders.moveToProduction(id),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
+  });
+}
+
+// ── Lookbook ──────────────────────────────────────────────────────────────────
+
+export function useLookbook() {
+  return useQuery({
+    queryKey: ["lookbook"],
+    queryFn: () => lookbook.list(),
+    staleTime: 120_000,
+  });
+}
+
+export function useAdminLookbook() {
+  return useQuery({
+    queryKey: ["admin-lookbook"],
+    queryFn: () => adminLookbook.list(),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminCreateLookbookItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: Parameters<typeof adminLookbook.create>[0]) =>
+      adminLookbook.create(dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-lookbook"] });
+      qc.invalidateQueries({ queryKey: ["lookbook"] });
+    },
+  });
+}
+
+export function useAdminUpdateLookbookItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      dto,
+    }: {
+      id: string;
+      dto: Parameters<typeof adminLookbook.update>[1];
+    }) => adminLookbook.update(id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-lookbook"] });
+      qc.invalidateQueries({ queryKey: ["lookbook"] });
+    },
+  });
+}
+
+export function useAdminDeleteLookbookItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminLookbook.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-lookbook"] });
+      qc.invalidateQueries({ queryKey: ["lookbook"] });
+    },
+  });
+}
+
+export function useAdminReorderLookbook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: { id: string; sortOrder: number }[]) =>
+      adminLookbook.reorder(items),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-lookbook"] }),
   });
 }

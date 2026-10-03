@@ -2,59 +2,59 @@ import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import Header from "../_components/Header.tsx";
 import Footer from "../_components/Footer.tsx";
+import { useLookbook } from "@/hooks/use-api.ts";
+import { Spinner } from "@/components/ui/spinner.tsx";
 
-const LOOKBOOK_ITEMS = [
+// Fallback items shown while loading or when the lookbook is empty
+const FALLBACK = [
   {
-    img: "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "The Harmattan Edit",
-    sub: "SS 2025",
-    size: "tall",
+    _id: "f1",
+    imageUrl:
+      "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    title: "The Harmattan Edit",
+    season: "SS 2025",
   },
   {
-    img: "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Fabric Stories",
-    sub: "Artisan Series",
-    size: "short",
+    _id: "f2",
+    imageUrl:
+      "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    title: "Fabric Stories",
+    season: "Artisan Series",
   },
   {
-    img: "https://images.unsplash.com/photo-1578509566163-068acd11b8e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Colour & Pattern",
-    sub: "Print Studio",
-    size: "short",
+    _id: "f3",
+    imageUrl:
+      "https://images.unsplash.com/photo-1578509566163-068acd11b8e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    title: "Colour & Pattern",
+    season: "Print Studio",
   },
   {
-    img: "https://images.unsplash.com/photo-1611580045568-7201033c7a3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Eko Summer",
-    sub: "Resort 2025",
-    size: "tall",
+    _id: "f4",
+    imageUrl:
+      "https://images.unsplash.com/photo-1611580045568-7201033c7a3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    title: "Eko Summer",
+    season: "Resort 2025",
   },
   {
-    img: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Heritage Craft",
-    sub: "Signature Collection",
-    size: "short",
+    _id: "f5",
+    imageUrl:
+      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    title: "Heritage Craft",
+    season: "Signature Collection",
   },
   {
-    img: "https://images.unsplash.com/photo-1625646741211-711bdd65c570?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Bold Expression",
-    sub: "Editorial",
-    size: "short",
-  },
-  {
-    img: "https://images.unsplash.com/photo-1574442624044-945f29ccb2a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Evening Ritual",
-    sub: "Evening Wear",
-    size: "tall",
-  },
-  {
-    img: "https://images.unsplash.com/photo-1520011207eed-66e55d7d47b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    label: "Lagos Streets",
-    sub: "Street Style",
-    size: "short",
+    _id: "f6",
+    imageUrl:
+      "https://images.unsplash.com/photo-1625646741211-711bdd65c570?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    title: "Bold Expression",
+    season: "Editorial",
   },
 ];
 
 export default function LookbookPage() {
+  const { data, isLoading } = useLookbook();
+  const items = data?.length ? data : FALLBACK;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -64,7 +64,7 @@ export default function LookbookPage() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url("https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920")`,
+            backgroundImage: `url("${items[0]?.imageUrl ?? FALLBACK[0].imageUrl}")`,
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
@@ -105,43 +105,53 @@ export default function LookbookPage() {
           richness of African print, pattern, and ancestral craft.
         </motion.p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 auto-rows-[220px]">
-          {LOOKBOOK_ITEMS.map((item, i) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, scale: 0.97 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.07 }}
-              className={`group relative overflow-hidden cursor-pointer ${
-                item.size === "tall" ? "row-span-2" : "row-span-1"
-              }`}
-            >
-              <img
-                src={item.img}
-                alt={item.label}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-5">
-                <div>
-                  <div className="w-4 h-[1px] bg-primary mb-2" />
-                  <p
-                    className="text-white text-lg font-light"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    {item.label}
-                  </p>
-                  <p
-                    className="text-white/60 text-[10px] tracking-[0.2em] uppercase mt-0.5"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
-                  >
-                    {item.sub}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Spinner className="size-8 text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[240px]">
+            {items.map((item, i) => {
+              // Make every 5th item span 2 rows for a masonry feel
+              const tall = i % 5 === 0;
+              return (
+                <motion.div
+                  key={item._id}
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: (i % 4) * 0.07 }}
+                  className={`group relative overflow-hidden cursor-pointer ${tall ? "row-span-2" : "row-span-1"}`}
+                >
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-5">
+                    <div>
+                      <div className="w-4 h-[1px] bg-primary mb-2" />
+                      <p
+                        className="text-white text-lg font-light"
+                        style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                      >
+                        {item.title}
+                      </p>
+                      {item.season && (
+                        <p
+                          className="text-white/60 text-[10px] tracking-[0.2em] uppercase mt-0.5"
+                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                        >
+                          {item.season}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
         {/* CTA */}
         <motion.div

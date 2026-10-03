@@ -841,3 +841,60 @@ export const adminCurrencyConfig = {
     return request<ApiCurrencyConfig>("PATCH", "/admin/currency-config", dto);
   },
 };
+
+// ── Lookbook ───────────────────────────────────────────────────────────────────
+
+export type ApiLookbookItem = {
+  _id: string;
+  title: string;
+  caption: string;
+  imageUrl: string;
+  season: string;
+  sortOrder: number;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const lookbook = {
+  list() {
+    return request<ApiLookbookItem[]>("GET", "/lookbook", undefined, {
+      context: "none",
+    });
+  },
+};
+
+export const adminLookbook = {
+  list() {
+    return request<ApiLookbookItem[]>("GET", "/admin/lookbook");
+  },
+  create(dto: {
+    title: string;
+    caption?: string;
+    imageUrl: string;
+    season?: string;
+    sortOrder?: number;
+    published?: boolean;
+  }) {
+    return request<ApiLookbookItem>("POST", "/admin/lookbook", dto);
+  },
+  update(
+    id: string,
+    dto: Partial<{
+      title: string;
+      caption: string;
+      imageUrl: string;
+      season: string;
+      sortOrder: number;
+      published: boolean;
+    }>,
+  ) {
+    return request<ApiLookbookItem>("PATCH", `/admin/lookbook/${id}`, dto);
+  },
+  remove(id: string) {
+    return request<void>("DELETE", `/admin/lookbook/${id}`);
+  },
+  reorder(items: { id: string; sortOrder: number }[]) {
+    return request<void>("PATCH", "/admin/lookbook/reorder", { items });
+  },
+};
