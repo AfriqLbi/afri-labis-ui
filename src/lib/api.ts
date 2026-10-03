@@ -17,15 +17,29 @@ export const API_BASE =
 // ── Session-expired callback ───────────────────────────────────────────────────
 // Auth providers register their own handler here so they can clear user state
 // and redirect without creating a circular import.
+//
+// IMPORTANT: these callbacks only fire when a session that WAS active has
+// expired mid-use. They must NOT fire on the initial page load for a guest
+// who never had a session. We track whether each context has ever had a
+// successful authenticated call with the _hasSession flags.
 
 let _onCustomerSessionExpired: (() => void) | null = null;
 let _onAdminSessionExpired: (() => void) | null = null;
+let _customerHasSession = false;
+let _adminHasSession = false;
 
 export function onCustomerSessionExpired(cb: () => void) {
   _onCustomerSessionExpired = cb;
 }
 export function onAdminSessionExpired(cb: () => void) {
   _onAdminSessionExpired = cb;
+}
+/** Called by AuthProvider after a successful login/register/me to arm the expiry callback. */
+export function markCustomerSessionActive() {
+  _customerHasSession = true;
+}
+export function markAdminSessionActive() {
+  _adminHasSession = true;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -263,9 +277,13 @@ async function request<T>(
       });
       return handleResponse<T>(retry);
     }
-    // Refresh failed — notify the relevant auth provider
-    if (context === "admin") _onAdminSessionExpired?.();
-    else _onCustomerSessionExpired?.();
+    // Refresh failed — only notify if this context had an active session.
+    // A guest hitting a 401 on the initial /auth/me should never see the toast.
+    if (context === "admin") {
+      if (_adminHasSession) _onAdminSessionExpired?.();
+    } else {
+      if (_customerHasSession) _onCustomerSessionExpired?.();
+    }
   }
 
   return handleResponse<T>(res);
@@ -361,10 +379,8 @@ export const auth = {
     });
   },
 
-  me() {
-    return request<AuthUser>("GET", "/auth/me", undefined, {
-      context: "customer",
-    });
+  me(context: "customer" | "none" = "customer") {
+    return request<AuthUser>("GET", "/auth/me", undefined, { context });
   },
 };
 
@@ -383,10 +399,8 @@ export const adminAuth = {
     });
   },
 
-  me() {
-    return request<AuthUser>("GET", "/admin/auth/me", undefined, {
-      context: "admin",
-    });
+  me(context: "admin" | "none" = "admin") {
+    return request<AuthUser>("GET", "/admin/auth/me", undefined, { context });
   },
 };
 
