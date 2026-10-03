@@ -104,17 +104,17 @@ export default function Footer() {
                 {
                   icon: <InstagramIcon className="w-4 h-4" />,
                   label: "Instagram",
-                  href: "#",
+                  href: "https://www.instagram.com/labiiafrica?stkn=ejMzeDUxaHFyYnI%3D&utm_source=qr",
                 },
                 {
                   icon: <XIcon className="w-4 h-4" />,
                   label: "X (Twitter)",
-                  href: "#",
+                  href: "https://x.com/labiafrica?s=11",
                 },
                 {
                   icon: <FacebookIcon className="w-4 h-4" />,
                   label: "Facebook",
-                  href: "#",
+                  href: "https://www.facebook.com/share/1FhEPUf2g7/?mibextid=wwXIfr",
                 },
                 {
                   icon: <TikTokIcon className="w-4 h-4" />,
