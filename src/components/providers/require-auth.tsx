@@ -1,11 +1,11 @@
 /**
- * RequireAuth  — guards customer routes. Redirects unauthenticated users to
- *                /auth/signin, and users with wrong role to /.
+ * RequireAuth  — guards customer routes.
+ * RequireAdmin — guards admin routes (separate AdminAuthContext).
  *
- * RequireAdmin — guards admin routes. Redirects unauthenticated admins to
- *                /admin/login, and users with wrong role to /.
- *                Uses the separate AdminAuthContext — completely isolated from
- *                the customer auth context.
+ * Key behaviour: while isLoading is true we only show the spinner if there is
+ * no cached user. If we already have a user from sessionStorage we render the
+ * Outlet immediately — this prevents the "flash to sign-in" on mobile where
+ * the background /auth/me call hasn't resolved yet.
  */
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth, useAdminAuth } from "@/hooks/use-auth.ts";
@@ -20,9 +20,11 @@ export function RequireAuth({ roles }: Props) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
-  if (isLoading) return <LoadingScreen />;
+  // Still loading AND no cached user → show spinner while /auth/me resolves
+  if (isLoading && !user) return <LoadingScreen />;
 
-  if (!isAuthenticated) {
+  // Not authenticated (and not still loading) → redirect to sign-in
+  if (!isLoading && !isAuthenticated) {
     return (
       <Navigate
         to={`/auth/signin?redirect=${encodeURIComponent(location.pathname + location.search)}`}
@@ -31,6 +33,7 @@ export function RequireAuth({ roles }: Props) {
     );
   }
 
+  // Role check
   if (roles && user && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
@@ -44,9 +47,11 @@ export function RequireAdmin({ roles }: Props) {
   const { isAuthenticated, isLoading, user } = useAdminAuth();
   const location = useLocation();
 
-  if (isLoading) return <LoadingScreen />;
+  // Still loading AND no cached user → show spinner
+  if (isLoading && !user) return <LoadingScreen />;
 
-  if (!isAuthenticated) {
+  // Not authenticated → redirect to admin login
+  if (!isLoading && !isAuthenticated) {
     return (
       <Navigate
         to={`/admin/login?redirect=${encodeURIComponent(location.pathname + location.search)}`}
@@ -55,7 +60,6 @@ export function RequireAdmin({ roles }: Props) {
     );
   }
 
-  // Default allowed admin roles — can be narrowed further via props
   const allowed = roles ?? [
     "super_admin",
     "merchandiser",

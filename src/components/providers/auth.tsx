@@ -5,9 +5,17 @@
  *   AuthProvider      — storefront customers  (cookie: labi_token)
  *   AdminAuthProvider — admin panel staff     (cookie: labi_admin_token)
  *
- * Neither context reads or writes localStorage. Tokens are httpOnly cookies
- * managed exclusively by the backend. On mount each provider calls /auth/me
- * (or /admin/auth/me) to discover whether a valid session already exists.
+ * Session continuity strategy:
+ *   1. On login/register the user object is written to sessionStorage
+ *      under "labi_user_session" so it survives SPA navigation without
+ *      re-fetching /auth/me on every route change.
+ *   2. On mount we hydrate from sessionStorage immediately (synchronously),
+ *      then verify with a background /auth/me call. This eliminates the flash
+ *      where isLoading=true causes RequireAuth to redirect before the fetch
+ *      resolves — the common cause of "kicked to sign-in on mobile navigation".
+ *   3. If /auth/me fails the sessionStorage entry is cleared and the user is
+ *      logged out cleanly.
+ *   4. On logout both cookie (via backend) and sessionStorage are cleared.
  */
 
 import {
@@ -32,7 +40,37 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-// ── Shared context shape ───────────────────────────────────────────────────────
+// ── sessionStorage helpers (non-sensitive — user metadata only, no tokens) ─────
+
+const SESSION_KEY = "labi_user_session";
+const ADMIN_SESSION_KEY = "labi_admin_session";
+
+function readSession(key: string): AuthUser | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(key: string, user: AuthUser): void {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(user));
+  } catch {
+    /* quota */
+  }
+}
+
+function clearSession(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+// ── Context types ──────────────────────────────────────────────────────────────
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -46,7 +84,6 @@ type AuthContextValue = {
     phone?: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
-  /** Legacy alias — navigates to /auth/signin */
   signinRedirect: () => void;
   signout: () => Promise<void>;
   profile: { name: string; email: string; avatar: string | null } | null;
@@ -68,23 +105,33 @@ const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 // ── Customer AuthProvider ──────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  // Hydrate synchronously from sessionStorage so RequireAuth never sees
+  // isLoading=true with no user when navigating between tabs on mobile.
+  const [user, setUser] = useState<AuthUser | null>(() =>
+    readSession(SESSION_KEY),
+  );
   const [isLoading, setLoad] = useState(true);
   const navigateRef = useRef<ReturnType<typeof useNavigate> | null>(null);
 
-  // Bootstrap: try to fetch the current customer session from the cookie
+  // Background verify — confirm the session cookie is still valid
   useEffect(() => {
     apiAuth
       .me()
-      .then((u) => setUser(u))
-      .catch(() => setUser(null))
+      .then((u) => {
+        setUser(u);
+        writeSession(SESSION_KEY, u);
+      })
+      .catch(() => {
+        // /auth/me failed — cookie expired or missing
+        clearSession(SESSION_KEY);
+        setUser(null);
+      })
       .finally(() => setLoad(false));
   }, []);
 
-  // Register the session-expired callback so api.ts can clear user state
-  // without importing React hooks
   useEffect(() => {
     onCustomerSessionExpired(() => {
+      clearSession(SESSION_KEY);
       setUser(null);
       toast.error("Your session has expired. Please sign in again.");
       try {
@@ -98,12 +145,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiAuth.login({ email, password });
     setUser(data.user);
+    writeSession(SESSION_KEY, data.user);
   }, []);
 
   const register = useCallback(
     async (name: string, email: string, password: string, phone?: string) => {
       const data = await apiAuth.register({ name, email, password, phone });
       setUser(data.user);
+      writeSession(SESSION_KEY, data.user);
     },
     [],
   );
@@ -114,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* expired — ignore */
     }
+    clearSession(SESSION_KEY);
     setUser(null);
     toast.success("Signed out");
   }, []);
@@ -156,22 +206,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // ── Admin AdminAuthProvider ────────────────────────────────────────────────────
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(() =>
+    readSession(ADMIN_SESSION_KEY),
+  );
   const [isLoading, setLoad] = useState(true);
   const navigateRef = useRef<ReturnType<typeof useNavigate> | null>(null);
 
-  // Bootstrap: try to fetch the current admin session from the cookie
   useEffect(() => {
     apiAdminAuth
       .me()
-      .then((u) => setUser(u))
-      .catch(() => setUser(null))
+      .then((u) => {
+        setUser(u);
+        writeSession(ADMIN_SESSION_KEY, u);
+      })
+      .catch(() => {
+        clearSession(ADMIN_SESSION_KEY);
+        setUser(null);
+      })
       .finally(() => setLoad(false));
   }, []);
 
-  // Register the session-expired callback
   useEffect(() => {
     onAdminSessionExpired(() => {
+      clearSession(ADMIN_SESSION_KEY);
       setUser(null);
       toast.error("Admin session expired. Please sign in again.");
       try {
@@ -185,6 +242,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiAdminAuth.login({ email, password });
     setUser(data.user);
+    writeSession(ADMIN_SESSION_KEY, data.user);
   }, []);
 
   const logout = useCallback(async () => {
@@ -193,6 +251,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    clearSession(ADMIN_SESSION_KEY);
     setUser(null);
     toast.success("Admin signed out");
   }, []);
