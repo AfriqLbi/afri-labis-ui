@@ -11,8 +11,9 @@ import {
   useAdminCreateProduct,
   useAdminUpdateProduct,
   useAdminCatalogCategories,
+  useAdminCatalogBrands,
 } from "@/hooks/use-api.ts";
-import { adminMedia } from "@/lib/api.ts";
+import { adminMedia, adminCatalog } from "@/lib/api.ts";
 import type { ApiProduct } from "@/lib/api.ts";
 import { Spinner } from "@/components/ui/spinner.tsx";
 
@@ -77,6 +78,9 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
   const createMut = useAdminCreateProduct();
   const updateMut = useAdminUpdateProduct();
   const { data: categories } = useAdminCatalogCategories();
+  const { data: brands, refetch: refetchBrands } = useAdminCatalogBrands();
+  const [newBrandName, setNewBrandName] = useState("");
+  const [creatingBrand, setCreatingBrand] = useState(false);
 
   const isSaving = createMut.isPending || updateMut.isPending;
 
@@ -166,7 +170,26 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
     set("images", imgs);
   };
 
-  // ── Spec helpers ──────────────────────────────────────────────────────────
+  // ── Brand inline create ───────────────────────────────────────────────────
+
+  const handleCreateBrand = async () => {
+    const name = newBrandName.trim();
+    if (!name) return;
+    setCreatingBrand(true);
+    try {
+      const brand = await adminCatalog.createBrand({ name });
+      await refetchBrands();
+      set("brandId", brand._id);
+      setNewBrandName("");
+      toast.success(`Brand "${brand.name}" created`);
+    } catch (err: unknown) {
+      toast.error((err as Error).message ?? "Could not create brand");
+    } finally {
+      setCreatingBrand(false);
+    }
+  };
+
+  // ── Spec helpers ───────────────────────────────────────────────────────────
 
   const setSpec = (i: number, key: "label" | "value", val: string) =>
     set(
@@ -337,16 +360,49 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
                 </Field>
 
                 {!isEdit && (
-                  <Field
-                    label="Brand ID"
-                    hint="ObjectId from the brands collection"
-                  >
-                    <input
+                  <Field label="Brand *">
+                    <select
                       value={form.brandId}
                       onChange={(e) => set("brandId", e.target.value)}
-                      placeholder="64a1f2c8e3b7a900120d5678"
-                      className="checkout-input font-mono text-xs"
-                    />
+                      className="checkout-input"
+                      required
+                    >
+                      <option value="">— Select brand —</option>
+                      {(brands ?? []).map((b) => (
+                        <option key={b._id} value={b._id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Inline brand creation */}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        value={newBrandName}
+                        onChange={(e) => setNewBrandName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleCreateBrand();
+                          }
+                        }}
+                        placeholder="Or type a new brand name…"
+                        className="checkout-input flex-1 text-xs py-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateBrand}
+                        disabled={!newBrandName.trim() || creatingBrand}
+                        className="px-3 py-2 text-[10px] tracking-[0.15em] uppercase bg-muted hover:bg-primary hover:text-primary-foreground text-muted-foreground border border-border transition-colors disabled:opacity-40 cursor-pointer flex items-center gap-1 shrink-0"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        {creatingBrand ? (
+                          <Spinner className="size-3" />
+                        ) : (
+                          <Plus size={11} />
+                        )}
+                        Create
+                      </button>
+                    </div>
                   </Field>
                 )}
 

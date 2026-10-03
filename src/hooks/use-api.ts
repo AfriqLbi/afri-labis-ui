@@ -234,6 +234,14 @@ export function useAdminCatalogCategories() {
   });
 }
 
+export function useAdminCatalogBrands() {
+  return useQuery({
+    queryKey: ["admin-catalog-brands"],
+    queryFn: () => adminCatalog.listBrands(),
+    staleTime: 300_000,
+  });
+}
+
 export function useAdminCreateCategory() {
   const qc = useQueryClient();
   return useMutation({

@@ -687,6 +687,19 @@ export const adminCatalog = {
   deleteCategory(id: string) {
     return request<void>("DELETE", `/admin/catalog/categories/${id}`);
   },
+  listBrands() {
+    return request<{ _id: string; name: string; slug: string }[]>(
+      "GET",
+      "/admin/catalog/brands",
+    );
+  },
+  createBrand(dto: { name: string; logoUrl?: string }) {
+    return request<{ _id: string; name: string; slug: string }>(
+      "POST",
+      "/admin/catalog/brands",
+      dto,
+    );
+  },
 };
 
 // ── Admin: Orders ──────────────────────────────────────────────────────────────
