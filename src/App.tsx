@@ -59,11 +59,13 @@ export default function App() {
 
           {/* ── Protected customer routes ── */}
           <Route element={<RequireAuth />}>
-            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/measurements" element={<MeasurementsPage />} />
             <Route path="/orders/:id" element={<OrderTrackingPage />} />
             <Route path="/account" element={<AccountPage />} />
           </Route>
+
+          {/* ── Checkout — guests and signed-in users both allowed ── */}
+          <Route path="/checkout" element={<CheckoutPage />} />
 
           {/* ── Admin auth (public — no guard) ── */}
           <Route path="/admin/login" element={<AdminLoginPage />} />

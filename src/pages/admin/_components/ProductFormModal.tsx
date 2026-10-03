@@ -320,7 +320,7 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
             >
               {/* ── Core details ── */}
               <Section title="Core Details">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field
                     label="SKU *"
                     hint={isEdit ? "Immutable after creation" : undefined}
@@ -424,7 +424,7 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
 
               {/* ── Pricing & stock ── */}
               <Section title="Pricing & Stock">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <Field label="Price (NGN) *">
                     <input
                       type="number"
@@ -482,7 +482,7 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
               >
                 {/* Existing images grid */}
                 {form.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {form.images.map((url, i) => (
                       <div
                         key={url + i}
@@ -649,7 +649,7 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
                   {form.specs.map((spec, i) => (
                     <div
                       key={i}
-                      className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center"
+                      className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_1fr_auto] gap-2 items-center"
                     >
                       <input
                         value={spec.label}

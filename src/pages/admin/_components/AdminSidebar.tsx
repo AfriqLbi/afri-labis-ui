@@ -35,7 +35,11 @@ const NAV = [
   { label: "Currency", href: "/admin/currency", icon: <Coins size={15} /> },
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  onNavigate,
+}: {
+  onNavigate?: () => void;
+}) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAdminAuth();
@@ -92,6 +96,7 @@ export default function AdminSidebar() {
             <Link
               key={item.href}
               to={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 text-[11px] tracking-[0.1em] uppercase transition-all",
                 active
@@ -111,6 +116,7 @@ export default function AdminSidebar() {
       <div className="px-3 py-4 border-t border-border space-y-0.5">
         <Link
           to="/"
+          onClick={onNavigate}
           className="flex items-center gap-2 px-3 py-2.5 text-[10px] tracking-[0.1em] uppercase text-muted-foreground hover:text-foreground transition-colors"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >

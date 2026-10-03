@@ -254,7 +254,7 @@ export default function CheckoutPage() {
           />
         ) : (
           <div className="max-w-7xl mx-auto px-6 py-12">
-            <div className="grid lg:grid-cols-[1fr_420px] gap-16">
+            <div className="grid md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_420px] gap-8 lg:gap-16">
               {/* Left — form */}
               <div>
                 <button
@@ -314,7 +314,7 @@ export default function CheckoutPage() {
                         }}
                         className="space-y-5"
                       >
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <Field label="First Name" required>
                             <input
                               required
@@ -396,7 +396,7 @@ export default function CheckoutPage() {
                             className="checkout-input"
                           />
                         </Field>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <Field label="City" required>
                             <input
                               required
@@ -431,7 +431,7 @@ export default function CheckoutPage() {
                             </select>
                           </Field>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <Field label="Country">
                             <input
                               value="Nigeria"
@@ -562,7 +562,10 @@ export default function CheckoutPage() {
                         {/* Price-lock banner for non-NGN orders */}
                         {!isNgn && (
                           <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
-                            <Clock size={14} className="text-primary mt-0.5 shrink-0" />
+                            <Clock
+                              size={14}
+                              className="text-primary mt-0.5 shrink-0"
+                            />
                             <p
                               className="text-xs text-muted-foreground leading-relaxed"
                               style={{ fontFamily: "'Montserrat', sans-serif" }}
@@ -583,21 +586,52 @@ export default function CheckoutPage() {
                             {isNgn ? (
                               // NGN: customer chooses Paystack or Flutterwave
                               [
-                                { id: "paystack" as const, label: "Paystack", sub: "Cards, Bank Transfer, USSD" },
-                                { id: "flutterwave" as const, label: "Flutterwave", sub: "Cards, Mobile Money, Bank Transfer" },
+                                {
+                                  id: "paystack" as const,
+                                  label: "Paystack",
+                                  sub: "Cards, Bank Transfer, USSD",
+                                },
+                                {
+                                  id: "flutterwave" as const,
+                                  label: "Flutterwave",
+                                  sub: "Cards, Mobile Money, Bank Transfer",
+                                },
                               ].map((opt) => (
                                 <label
                                   key={opt.id}
                                   className={`flex items-center gap-4 px-4 py-4 border cursor-pointer transition-all ${paymentProvider === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
                                 >
-                                  <div className={`w-4 h-4 border flex items-center justify-center shrink-0 ${paymentProvider === opt.id ? "border-primary" : "border-border"}`}>
-                                    {paymentProvider === opt.id && <div className="w-2 h-2 bg-primary" />}
+                                  <div
+                                    className={`w-4 h-4 border flex items-center justify-center shrink-0 ${paymentProvider === opt.id ? "border-primary" : "border-border"}`}
+                                  >
+                                    {paymentProvider === opt.id && (
+                                      <div className="w-2 h-2 bg-primary" />
+                                    )}
                                   </div>
                                   <div>
-                                    <p className="text-xs font-semibold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>{opt.label}</p>
-                                    <p className="text-[10px] text-muted-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>{opt.sub}</p>
+                                    <p
+                                      className="text-xs font-semibold text-foreground"
+                                      style={{
+                                        fontFamily: "'Montserrat', sans-serif",
+                                      }}
+                                    >
+                                      {opt.label}
+                                    </p>
+                                    <p
+                                      className="text-[10px] text-muted-foreground"
+                                      style={{
+                                        fontFamily: "'Montserrat', sans-serif",
+                                      }}
+                                    >
+                                      {opt.sub}
+                                    </p>
                                   </div>
-                                  <input type="radio" className="hidden" checked={paymentProvider === opt.id} onChange={() => setPaymentProvider(opt.id)} />
+                                  <input
+                                    type="radio"
+                                    className="hidden"
+                                    checked={paymentProvider === opt.id}
+                                    onChange={() => setPaymentProvider(opt.id)}
+                                  />
                                 </label>
                               ))
                             ) : (
@@ -607,10 +641,20 @@ export default function CheckoutPage() {
                                   <div className="w-2 h-2 bg-primary" />
                                 </div>
                                 <div>
-                                  <p className="text-xs font-semibold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                                  <p
+                                    className="text-xs font-semibold text-foreground"
+                                    style={{
+                                      fontFamily: "'Montserrat', sans-serif",
+                                    }}
+                                  >
                                     {stripeEnabled ? "Stripe" : "Flutterwave"}
                                   </p>
-                                  <p className="text-[10px] text-muted-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                                  <p
+                                    className="text-[10px] text-muted-foreground"
+                                    style={{
+                                      fontFamily: "'Montserrat', sans-serif",
+                                    }}
+                                  >
                                     {stripeEnabled
                                       ? `International cards · ${activeCurrency}`
                                       : `Multi-currency · ${activeCurrency}`}
@@ -645,12 +689,14 @@ export default function CheckoutPage() {
               </div>
 
               {/* Right — order summary */}
-              <OrderSummary
-                items={items}
-                subtotal={subtotal}
-                shippingCost={shippingCost}
-                total={total}
-              />
+              <div className="order-first md:order-last">
+                <OrderSummary
+                  items={items}
+                  subtotal={subtotal}
+                  shippingCost={shippingCost}
+                  total={total}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -892,7 +938,7 @@ function OrderSummary({
                   className="text-sm font-semibold text-primary mt-1"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
-            {formatAmount(item.product.price * item.quantity * 100)}
+                  {formatAmount(item.product.price * item.quantity * 100)}
                 </p>
               </div>
             </div>

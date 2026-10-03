@@ -133,6 +133,44 @@
     @apply bg-background text-foreground;
   }
 
+  /* ── Scrollbar styling — matches LABI dark UI ──────────────────────────────
+     Thin, gold-on-dark scrollbars on Webkit (Chrome/Safari/Edge).
+     Firefox gets the same via scrollbar-color.
+     Overlay behaviour (auto-hide on macOS) is preserved — the track is
+     transparent so it never takes layout space unless the user is scrolling. */
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0 0); /* muted dark */
+    border-radius: 0; /* square corners — brand language */
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.874 0.185 95.3); /* --primary gold on hover */
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.3 0 0) transparent;
+  }
+
+  /* Utility: fully hidden scrollbar (still scrollable) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
   .checkout-input {
     @apply w-full bg-input border border-border text-foreground px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors;
     font-family: "Montserrat", sans-serif;
