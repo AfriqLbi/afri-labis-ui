@@ -26,9 +26,16 @@ const PILLARS = [
   },
 ];
 
+import PageMeta from "@/components/PageMeta.tsx";
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta
+        title="About LÁBí"
+        description="LÁBí is an indigenous African textile and fashion brand from Ilorin, Kwara State, Nigeria. Founded to take Aṣọ-Òkè and African textiles to the world."
+        canonical="https://labiafrica.com/about"
+      />
       <Header />
 
       {/* ── Hero ── */}
@@ -88,23 +95,25 @@ export default function AboutPage() {
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             LÁBí is an indigenous African textile and fashion brand founded in{" "}
-            <em className="text-primary not-italic">Ilorin, Kwara State, Nigeria.</em>
+            <em className="text-primary not-italic">
+              Ilorin, Kwara State, Nigeria.
+            </em>
           </p>
           <p
             className="text-xl font-light text-muted-foreground leading-relaxed max-w-3xl"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            We are on a mission to take Aṣọ-Òkè and African textiles to the world —
-            transforming traditional woven fabrics into modern pieces that can be worn
-            every day, anywhere in the world.
+            We are on a mission to take Aṣọ-Òkè and African textiles to the
+            world — transforming traditional woven fabrics into modern pieces
+            that can be worn every day, anywhere in the world.
           </p>
           <p
             className="text-lg font-light text-muted-foreground leading-relaxed max-w-3xl"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             At LÁBí, we believe African clothing should not be preserved only in
-            museums or worn only on special occasions. Our culture can be modern,
-            functional, stylish and global.
+            museums or worn only on special occasions. Our culture can be
+            modern, functional, stylish and global.
           </p>
         </motion.div>
       </section>
@@ -167,9 +176,9 @@ export default function AboutPage() {
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
               From our FÌLÁ and Aṣọ-Òkè trousers to jackets, shirts, coats and
-              other contemporary pieces — we combine traditional craftsmanship with
-              modern design to create clothing that allows people to wear their
-              heritage with pride.
+              other contemporary pieces — we combine traditional craftsmanship
+              with modern design to create clothing that allows people to wear
+              their heritage with pride.
             </p>
             <Link
               to="/shop"
@@ -277,18 +286,19 @@ export default function AboutPage() {
               className="text-lg font-light text-muted-foreground leading-relaxed"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              We work with local weavers, tailors and artisans, creating opportunities
-              within our communities while building an African textile brand with
-              global ambitions.
+              We work with local weavers, tailors and artisans, creating
+              opportunities within our communities while building an African
+              textile brand with global ambitions.
             </p>
             <p
               className="text-lg font-light text-muted-foreground leading-relaxed"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              Our long-term vision is to become a major non-oil export brand from
-              Nigeria — taking African-made textiles and garments to customers around
-              the world, creating jobs, supporting local production and ultimately
-              building a world-class garment production house for African fashion brands.
+              Our long-term vision is to become a major non-oil export brand
+              from Nigeria — taking African-made textiles and garments to
+              customers around the world, creating jobs, supporting local
+              production and ultimately building a world-class garment
+              production house for African fashion brands.
             </p>
           </motion.div>
         </div>

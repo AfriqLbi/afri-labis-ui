@@ -1,27 +1,20 @@
 /**
  * Labi API Client
  *
- * Typed fetch wrapper for the NestJS backend at /v1/.
- * - Auth is handled via httpOnly cookies (set by the backend on login).
- *   No tokens are ever stored in localStorage or JS-accessible storage.
- * - Every request includes credentials: "include" so the browser sends cookies.
- * - On 401 the client calls the appropriate /auth/refresh endpoint (also cookie-based)
- *   and retries once. If refresh fails the onSessionExpired callback is invoked.
+ * Auth strategy: httpOnly cookies on .labiafrica.com
+ *   labiafrica.com  (frontend)  and  api.labiafrica.com (backend)
+ *   share the same root domain, so cookies are sent automatically by the
+ *   browser with every request — no tokens in localStorage.
+ *
+ * Every fetch includes  credentials: "include"  so the browser sends the
+ * labi_at / labi_admin_at cookies. On 401 the client calls the appropriate
+ * refresh endpoint (also cookie-based) and retries once.
  */
-
-// ── Config ─────────────────────────────────────────────────────────────────────
 
 export const API_BASE =
   (import.meta.env.VITE_API_URL ?? "http://localhost:4000") + "/v1";
 
-// ── Session-expired callback ───────────────────────────────────────────────────
-// Auth providers register their own handler here so they can clear user state
-// and redirect without creating a circular import.
-//
-// IMPORTANT: these callbacks only fire when a session that WAS active has
-// expired mid-use. They must NOT fire on the initial page load for a guest
-// who never had a session. We track whether each context has ever had a
-// successful authenticated call with the _hasSession flags.
+// ── Session-expired callbacks ──────────────────────────────────────────────────
 
 let _onCustomerSessionExpired: (() => void) | null = null;
 let _onAdminSessionExpired: (() => void) | null = null;
@@ -34,7 +27,6 @@ export function onCustomerSessionExpired(cb: () => void) {
 export function onAdminSessionExpired(cb: () => void) {
   _onAdminSessionExpired = cb;
 }
-/** Called by AuthProvider after a successful login/register/me to arm the expiry callback. */
 export function markCustomerSessionActive() {
   _customerHasSession = true;
 }
@@ -55,7 +47,6 @@ export type AuthUser = {
   role: UserRole;
 };
 
-// Kept for legacy compatibility — no longer used for token storage
 export type AuthTokens = {
   user: AuthUser;
 };
@@ -150,11 +141,7 @@ export type ApiOrder = {
   updatedAt: string;
 };
 
-export type MeasurementField = {
-  key: string;
-  label: string;
-  value: number;
-};
+export type MeasurementField = { key: string; label: string; value: number };
 
 export type ApiMeasurementProfile = {
   _id: string;
@@ -239,16 +226,15 @@ class ApiError extends Error {
     this.name = "ApiError";
   }
 }
-
 export { ApiError };
 
 // ── Core fetch ─────────────────────────────────────────────────────────────────
 
 /**
- * `context` tells the refresh logic which cookie set to refresh when a 401 fires.
- * "customer" → POST /auth/refresh (uses labi_token_refresh cookie)
- * "admin"    → POST /admin/auth/refresh (uses labi_admin_token_refresh cookie)
- * "none"     → no auto-refresh attempted
+ * context controls auto-refresh on 401:
+ *   "customer" → POST /auth/refresh        (uses labi_rt cookie)
+ *   "admin"    → POST /admin/auth/refresh  (uses labi_admin_rt cookie)
+ *   "none"     → no refresh (login, register, public endpoints, bootstrap)
  */
 async function request<T>(
   method: string,
@@ -261,7 +247,7 @@ async function request<T>(
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    credentials: "include", // send cookies on every request
+    credentials: "include", // sends labi_at / labi_admin_at cookie automatically
     headers: { "Content-Type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -277,8 +263,7 @@ async function request<T>(
       });
       return handleResponse<T>(retry);
     }
-    // Refresh failed — only notify if this context had an active session.
-    // A guest hitting a 401 on the initial /auth/me should never see the toast.
+    // Only fire if this context had an active session (not a guest 401)
     if (context === "admin") {
       if (_adminHasSession) _onAdminSessionExpired?.();
     } else {
@@ -290,12 +275,7 @@ async function request<T>(
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  let json: {
-    success: boolean;
-    data?: T;
-    message?: string;
-    statusCode?: number;
-  } | null = null;
+  let json: { success: boolean; data?: T; message?: string } | null = null;
   try {
     json = await res.json();
   } catch {
@@ -353,7 +333,7 @@ export const geo = {
   },
 };
 
-// ── Auth — Storefront (customer) ───────────────────────────────────────────────
+// ── Auth — Storefront ──────────────────────────────────────────────────────────
 
 export const auth = {
   register(dto: {
@@ -366,19 +346,16 @@ export const auth = {
       context: "none",
     });
   },
-
   login(dto: { email: string; password: string }) {
     return request<{ user: AuthUser }>("POST", "/auth/login", dto, {
       context: "none",
     });
   },
-
   logout() {
     return request<void>("POST", "/auth/logout", undefined, {
-      context: "none",
+      context: "customer",
     });
   },
-
   me(context: "customer" | "none" = "customer") {
     return request<AuthUser>("GET", "/auth/me", undefined, { context });
   },
@@ -392,13 +369,11 @@ export const adminAuth = {
       context: "none",
     });
   },
-
   logout() {
     return request<void>("POST", "/admin/auth/logout", undefined, {
-      context: "none",
+      context: "admin",
     });
   },
-
   me(context: "admin" | "none" = "admin") {
     return request<AuthUser>("GET", "/admin/auth/me", undefined, { context });
   },
@@ -436,20 +411,17 @@ export const catalog = {
       { context: "none" },
     );
   },
-
   getProduct(slug: string) {
     return request<ApiProduct>("GET", `/catalog/products/${slug}`, undefined, {
       context: "none",
     });
   },
-
   listCategories(type?: "category" | "section") {
     const q = type ? `?type=${type}` : "";
     return request<ApiCategory[]>("GET", `/catalog/categories${q}`, undefined, {
       context: "none",
     });
   },
-
   getCategory(slug: string) {
     return request<ApiCategory>(
       "GET",
@@ -627,13 +599,14 @@ export const measurements = {
 
 export const adminMedia = {
   async upload(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append("file", file);
     const res = await fetch(`${API_BASE}/admin/media/upload`, {
       method: "POST",
-      credentials: "include", // sends labi_admin_token cookie
-      body: formData,
-      // No Content-Type header — browser sets multipart/form-data with boundary
+      credentials: "include",
+      body: (() => {
+        const f = new FormData();
+        f.append("file", file);
+        return f;
+      })(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -849,7 +822,6 @@ export type CurrencyConfigRoundingRule = {
   decimals: number;
   mode: "round" | "ceil" | "floor";
 };
-
 export type ApiCurrencyConfig = {
   configKey: string;
   enabledCurrencies: string[];

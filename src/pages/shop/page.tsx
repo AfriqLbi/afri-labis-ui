@@ -7,7 +7,8 @@ import Footer from "../_components/Footer.tsx";
 import ProductCard from "../_components/ProductCard.tsx";
 import { useProducts, useCategories } from "@/hooks/use-api.ts";
 import type { ApiProduct } from "@/lib/api.ts";
-import { Spinner } from "@/components/ui/spinner.tsx";
+import { ProductGridSkeleton } from "@/components/ui/skeleton.tsx";
+import PageMeta from "@/components/PageMeta.tsx";
 
 // ── Adapts API product to the shape ProductCard expects ──────────────────────
 function toLocalProduct(p: ApiProduct) {
@@ -138,6 +139,13 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta
+        title={
+          searchQuery ? `Search: "${searchQuery}"` : "Shop All Collections"
+        }
+        description="Browse LÁBí's full collection of handwoven Aṣọ-Òkè, FÌLÁ, ankara and contemporary African fashion pieces made in Ilorin, Nigeria."
+        canonical="https://labiafrica.com/shop"
+      />
       <Header />
 
       {/* Page hero */}
@@ -276,9 +284,7 @@ export default function ShopPage() {
 
         {/* Product grid */}
         {isLoading ? (
-          <div className="py-32 flex justify-center">
-            <Spinner className="size-8 text-primary" />
-          </div>
+          <ProductGridSkeleton count={24} />
         ) : isError ? (
           <div className="py-32 text-center">
             <p

@@ -19,17 +19,13 @@ import {
   useAdminLowStock,
 } from "@/hooks/use-api.ts";
 import { MONTHLY_SALES, CATEGORY_REVENUE } from "../_lib/mock-admin-data.ts";
+import { KpiGridSkeleton, Skeleton } from "@/components/ui/skeleton.tsx";
 import { formatPrice } from "@/lib/products.ts";
-import { Spinner } from "@/components/ui/spinner.tsx";
 
 // ── Custom Tooltip ─────────────────────────────────────────────────────────────
 // Typed correctly for Recharts v3 to avoid runtime errors from ValueType casts.
 
-function RevenueTooltip({
-  active,
-  payload,
-  label,
-}: TooltipContentProps) {
+function RevenueTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
   const value = payload[0]?.value;
   const ngn =
@@ -51,10 +47,7 @@ function RevenueTooltip({
   );
 }
 
-function PieTooltip({
-  active,
-  payload,
-}: TooltipContentProps) {
+function PieTooltip({ active, payload }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
   const entry = payload[0];
   return (
@@ -111,20 +104,10 @@ export default function AdminAnalyticsPage() {
         </h1>
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Spinner className="size-5" />
-          <span
-            className="text-sm"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Loading analytics…
-          </span>
-        </div>
-      )}
+      {loading && <KpiGridSkeleton count={4} />}
 
       {/* KPI cards — always in NGN (admin canonical view) */}
-      {metrics && (
+      {!loading && metrics && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             {
@@ -165,38 +148,50 @@ export default function AdminAnalyticsPage() {
           >
             Monthly Revenue
           </p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} barSize={26}>
-              <XAxis
-                dataKey="month"
-                tick={{
-                  fill: "#888",
-                  fontSize: 10,
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#888", fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => `₦${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip
-                content={(props) => <RevenueTooltip {...props} />}
-                cursor={{ fill: "rgba(255,255,255,0.04)" }}
-              />
-              <Bar dataKey="revenue" radius={0} isAnimationActive={false}>
-                {chartData.map((_entry, i) => (
-                  <Cell
-                    key={`bar-cell-${i}`}
-                    fill={i === chartData.length - 1 ? "#FED700" : "#52480D"}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {sL ? (
+            <div className="flex items-end gap-2 h-[200px]">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="flex-1"
+                  style={{ height: `${35 + ((i * 11) % 65)}%` }}
+                />
+              ))}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} barSize={26}>
+                <XAxis
+                  dataKey="month"
+                  tick={{
+                    fill: "#888",
+                    fontSize: 10,
+                    fontFamily: "Montserrat, sans-serif",
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "#888", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => `₦${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  content={(props) => <RevenueTooltip {...props} />}
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                />
+                <Bar dataKey="revenue" radius={0} isAnimationActive={false}>
+                  {chartData.map((_entry, i) => (
+                    <Cell
+                      key={`bar-cell-${i}`}
+                      fill={i === chartData.length - 1 ? "#FED700" : "#52480D"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Category pie */}

@@ -22,6 +22,7 @@ import Header from "../_components/Header.tsx";
 import Footer from "../_components/Footer.tsx";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner.tsx";
+import PageMeta from "@/components/PageMeta.tsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta title="Checkout" noIndex={true} />
       <Header />
       <div className="pt-[65px]">
         {step === "confirmation" ? (

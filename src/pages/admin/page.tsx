@@ -24,8 +24,8 @@ import {
   MONTHLY_SALES,
   ADMIN_ORDERS,
 } from "./_lib/mock-admin-data.ts";
+import { KpiGridSkeleton, Skeleton } from "@/components/ui/skeleton.tsx";
 import { formatPrice } from "@/lib/products.ts";
-import { Spinner } from "@/components/ui/spinner.tsx";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-NG", {
@@ -112,15 +112,7 @@ export default function AdminOverviewPage() {
 
       {/* KPI cards */}
       {metricsLoading ? (
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Spinner className="size-5" />
-          <span
-            className="text-sm"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Loading metrics…
-          </span>
-        </div>
+        <KpiGridSkeleton count={4} />
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {KPI.map((k) => (
@@ -161,8 +153,21 @@ export default function AdminOverviewPage() {
           Revenue — Last 6 Months
         </p>
         {seriesLoading ? (
-          <div className="h-40 flex items-center justify-center">
-            <Spinner className="size-6 text-primary" />
+          <div className="space-y-3 pt-2">
+            <div className="flex justify-between items-end gap-2 h-40">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="flex-1"
+                  style={{ height: `${40 + Math.random() * 80}%` }}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-3 flex-1" />
+              ))}
+            </div>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>

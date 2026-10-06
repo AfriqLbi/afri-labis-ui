@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/use-auth.ts";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
+import PageMeta from "@/components/PageMeta.tsx";
 import {
   useMyOrders,
   useMyCustomOrders,
@@ -148,6 +149,11 @@ const STAGE_ICONS: Record<string, React.ReactNode> = {
 export default function AccountPage() {
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta
+        title="My Account"
+        description="Manage your LÁBí account, orders, measurements and custom requests."
+        noIndex={true}
+      />
       <Header />
       <div className="pt-[65px]">
         <AuthLoading>
@@ -987,14 +993,27 @@ function Field({
 
 function LoadingState() {
   return (
-    <div className="flex items-center gap-3 py-12 text-muted-foreground">
-      <Spinner className="size-5" />
-      <span
-        className="text-sm"
-        style={{ fontFamily: "'Montserrat', sans-serif" }}
-      >
-        Loading…
-      </span>
+    <div className="space-y-4 py-4">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="border border-border p-5 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <Skeleton className="h-6 w-20" />
+          </div>
+          <div className="flex gap-3">
+            {[0, 1, 2].map((j) => (
+              <Skeleton key={j} className="w-14 h-16" />
+            ))}
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t border-border">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-28" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

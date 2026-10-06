@@ -1,0 +1,13 @@
+{
+  "name": "LÁBí — African Fashion",
+  "short_name": "LÁBí",
+  "description": "Contemporary African fashion rooted in heritage craft. Made in Nigeria.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#FED700",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

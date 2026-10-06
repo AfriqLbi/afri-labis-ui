@@ -17,8 +17,9 @@ import { useCurrency } from "@/components/providers/currency.tsx";
 import { useProduct, useProducts } from "@/hooks/use-api.ts";
 import type { ApiProduct } from "@/lib/api.ts";
 import { toast } from "sonner";
-import { Spinner } from "@/components/ui/spinner.tsx";
+import { ProductDetailSkeleton } from "@/components/ui/skeleton.tsx";
 import SizeGuideModal from "@/components/SizeGuideModal.tsx";
+import PageMeta from "@/components/PageMeta.tsx";
 
 // Adapter: ApiProduct → local Product shape expected by ProductCard / useCart
 function toLocalProduct(p: ApiProduct) {
@@ -58,8 +59,11 @@ export default function ProductDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Spinner className="size-8 text-primary" />
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="pt-[65px]">
+          <ProductDetailSkeleton />
+        </div>
       </div>
     );
   }
@@ -88,6 +92,34 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta
+        title={product.title}
+        description={
+          product.description ||
+          `${product.title} by LÁBí — Contemporary African fashion made in Nigeria.`
+        }
+        image={product.images[0]}
+        type="product"
+        canonical={`https://labiafrica.com/shop/${product.slug || product._id}`}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: product.title,
+          description: product.description,
+          image: product.images,
+          brand: { "@type": "Brand", name: product.brandName || "LÁBí" },
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "NGN",
+            price: product.price,
+            availability:
+              product.stock - product.reserved > 0
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+            seller: { "@type": "Organization", name: "LÁBí" },
+          },
+        }}
+      />
       <Header />
       <div className="pt-[65px]">
         <ProductDetail product={product} />

@@ -1,21 +1,12 @@
 /**
- * Auth Providers — cookie-based JWT auth for the Labi storefront.
+ * Auth Providers — httpOnly cookie auth on .labiafrica.com
  *
- * Two completely separate contexts:
- *   AuthProvider      — storefront customers  (cookie: labi_token)
- *   AdminAuthProvider — admin panel staff     (cookie: labi_admin_token)
+ * labiafrica.com (frontend) and api.labiafrica.com (backend) share the same
+ * root domain. Cookies with domain=".labiafrica.com" are sent automatically
+ * by the browser on every request — no tokens in localStorage.
  *
- * Session continuity strategy:
- *   1. On login/register the user object (id, name, email, role — no tokens)
- *      is written to localStorage so it survives page refreshes and tab closes.
- *      Auth tokens remain exclusively in httpOnly cookies managed by the backend.
- *   2. On mount we hydrate from localStorage synchronously, then verify with a
- *      background /auth/me call. This means the UI is instantly populated on
- *      refresh without a loading flash, and RequireAuth never incorrectly
- *      redirects while the network call is in flight.
- *   3. If /auth/me fails (cookie expired/invalid), the localStorage entry is
- *      cleared and the user is logged out cleanly.
- *   4. On logout both the backend cookie and the localStorage entry are cleared.
+ * The user profile (id, name, email, role) is cached in localStorage so the
+ * UI renders instantly on page refresh without waiting for /auth/me.
  */
 
 import {
@@ -42,10 +33,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-// ── localStorage helpers (non-sensitive — user metadata only, no tokens) ───────
-// Auth tokens live exclusively in httpOnly cookies set by the backend.
-// We only store the user profile (id, name, email, role) so the UI can
-// render immediately on page refresh without waiting for /auth/me.
+// ── localStorage helpers ───────────────────────────────────────────────────────
+// Stores the user profile (id, name, email, role) so the UI renders instantly
 
 const USER_KEY = "labi_user";
 const ADMIN_USER_KEY = "labi_admin_user";
@@ -116,9 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setLoad] = useState(true);
   const navigateRef = useRef<ReturnType<typeof useNavigate> | null>(null);
 
-  // Background verify — confirm the session cookie is still valid.
+  // Background verify — confirm the stored token is still valid.
   // Pass context:"none" so a 401 here NEVER triggers the session-expired toast.
-  // For a guest with no cookie, a 401 just means "not logged in" — not an expiry.
+  // For a guest with no token, a 401 just means "not logged in" — not an expiry.
   useEffect(() => {
     apiAuth
       .me("none")

@@ -4,6 +4,7 @@ import Header from "../_components/Header.tsx";
 import Footer from "../_components/Footer.tsx";
 import { useLookbook } from "@/hooks/use-api.ts";
 import { Spinner } from "@/components/ui/spinner.tsx";
+import PageMeta from "@/components/PageMeta.tsx";
 
 // Fallback items shown while loading or when the lookbook is empty
 const FALLBACK = [
@@ -57,6 +58,12 @@ export default function LookbookPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageMeta
+        title="Lookbook — The Labi Edit"
+        description="A visual journey through LÁBí's seasonal collections — celebrating the richness of African print, pattern, and Aṣọ-Òkè craftsmanship."
+        canonical="https://labiafrica.com/lookbook"
+        image={items[0]?.imageUrl}
+      />
       <Header />
 
       {/* Hero banner */}
