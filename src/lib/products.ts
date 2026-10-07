@@ -239,7 +239,8 @@ export const PRICE_RANGES = [
 export type PriceRangeId = (typeof PRICE_RANGES)[number]["id"];
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 
-export function formatPrice(price: number): string {
+export function formatPrice(price: number | null | undefined): string {
+  if (price == null || isNaN(price)) return "₦0";
   return `₦${price.toLocaleString("en-NG")}`;
 }
 

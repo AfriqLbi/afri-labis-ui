@@ -287,9 +287,9 @@ export default function AdminProductsPage() {
                           className="text-sm text-foreground"
                           style={{ fontFamily: "'Montserrat', sans-serif" }}
                         >
-                          {formatPrice(p.price)}
+                          {formatPrice(p.price ?? 0)}
                         </p>
-                        {p.compareAtPrice && (
+                        {p.compareAtPrice != null && (
                           <p
                             className="text-xs line-through text-muted-foreground"
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
