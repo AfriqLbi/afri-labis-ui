@@ -24,7 +24,7 @@ import PageMeta from "@/components/PageMeta.tsx";
 // Adapter: ApiProduct → local Product shape expected by ProductCard / useCart
 function toLocalProduct(p: ApiProduct) {
   return {
-    id: p._id,
+    id: p.slug || p._id, // use slug for URL routing — API accepts slugs
     name: p.title,
     price: p.price,
     originalPrice: p.compareAtPrice ?? undefined,
@@ -54,7 +54,8 @@ function toLocalProduct(p: ApiProduct) {
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
 
-  // id may be either the _id or the slug; the backend accepts both at /catalog/products/:slug
+  // id is the product slug (e.g. "labi-adunola-warped-dress")
+  // All product links are generated with the slug via toLocalProduct(p.slug || p._id)
   const { data: product, isLoading, isError } = useProduct(id ?? "");
 
   if (isLoading) {

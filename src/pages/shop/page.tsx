@@ -13,7 +13,7 @@ import PageMeta from "@/components/PageMeta.tsx";
 // ── Adapts API product to the shape ProductCard expects ──────────────────────
 function toLocalProduct(p: ApiProduct) {
   return {
-    id: p._id,
+    id: p.slug || p._id, // use slug for URL routing — API accepts slugs
     name: p.title,
     price: p.price,
     originalPrice: p.compareAtPrice ?? undefined,
