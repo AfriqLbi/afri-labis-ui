@@ -1,4 +1,4 @@
-import { useState, Component, type ReactNode } from "react";
+import { useState } from "react";
 import { Plus, Pencil, Archive, ChevronDown, Tag } from "lucide-react";
 import {
   useAdminProducts,
@@ -8,49 +8,10 @@ import {
 } from "@/hooks/use-api.ts";
 import { formatPrice } from "@/lib/products.ts";
 import { AdminTableSkeleton } from "@/components/ui/skeleton.tsx";
+import { ApiErrorBoundary } from "@/components/ApiErrorBoundary.tsx";
 import { toast } from "sonner";
 import type { ApiProduct } from "@/lib/api.ts";
 import ProductFormModal from "../_components/ProductFormModal.tsx";
-
-// ── Error boundary — prevents the whole admin panel going blank if the
-//    product form modal or any child throws during render ───────────────────────
-class ProductsErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: string | null }
-> {
-  state = { error: null };
-  static getDerivedStateFromError(err: Error) {
-    return { error: err.message ?? "Unknown error" };
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="p-8 space-y-4">
-          <p
-            className="text-3xl font-light text-muted-foreground"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}
-          >
-            Something went wrong
-          </p>
-          <p
-            className="text-xs text-destructive font-mono"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            {this.state.error}
-          </p>
-          <button
-            onClick={() => this.setState({ error: null })}
-            className="text-xs tracking-[0.2em] uppercase text-primary border-b border-primary pb-0.5 cursor-pointer"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Try again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const TAGS = [
   { id: "new_arrival", label: "New" },
@@ -140,7 +101,7 @@ export default function AdminProductsPage() {
   // ── UI ─────────────────────────────────────────────────────────────────────
 
   return (
-    <ProductsErrorBoundary>
+    <ApiErrorBoundary label="Admin Products">
       <>
         <div className="p-8 space-y-6">
           {/* Page header */}
@@ -425,6 +386,6 @@ export default function AdminProductsPage() {
           product={editProduct}
         />
       </>
-    </ProductsErrorBoundary>
+    </ApiErrorBoundary>
   );
 }

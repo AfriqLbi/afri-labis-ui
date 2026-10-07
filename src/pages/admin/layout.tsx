@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import AdminSidebar from "./_components/AdminSidebar.tsx";
+import { ApiErrorBoundary } from "@/components/ApiErrorBoundary.tsx";
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -67,7 +68,9 @@ export default function AdminLayout() {
         </div>
 
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <ApiErrorBoundary label="Admin Page">
+            <Outlet />
+          </ApiErrorBoundary>
         </main>
       </div>
     </div>

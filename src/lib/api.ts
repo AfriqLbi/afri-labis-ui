@@ -52,14 +52,17 @@ export type AuthTokens = {
 };
 
 export type ApiProduct = {
+  // Support both old shape (_id, price, brandName…) and new shape (id, priceBase, brand.name…)
+  // The normaliseProduct() function below maps the new shape to these canonical fields.
   _id: string;
   sku: string;
   slug: string;
   title: string;
   brandName: string;
+  brandSlug: string;
   categoryName: string;
   categorySlug: string;
-  price: number;
+  price: number; // always full NGN (naira), never kobo
   compareAtPrice: number | null;
   stock: number;
   reserved: number;
@@ -71,7 +74,46 @@ export type ApiProduct = {
   tags: string[];
   ratingAvg: number;
   ratingCount: number;
+  stockStatus?: string;
 };
+
+/**
+ * Normalise any product shape the backend returns into the canonical ApiProduct.
+ *
+ * The backend has shipped two response shapes:
+ *   Old: { _id, price, brandName, categoryName, categorySlug, ratingAvg, ratingCount }
+ *   New: { id, priceBase, brand:{name,slug}, category:{name,slug}, rating:{average,count} }
+ *
+ * This function accepts either and always returns the canonical shape so all
+ * consumers (shop, admin, product detail, featured products) work without changes.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normaliseProduct(raw: any): ApiProduct {
+  return {
+    _id: raw._id ?? raw.id ?? "",
+    sku: raw.sku ?? "",
+    slug: raw.slug ?? "",
+    title: raw.title ?? "",
+    brandName: raw.brandName ?? raw.brand?.name ?? "",
+    brandSlug: raw.brandSlug ?? raw.brand?.slug ?? "",
+    categoryName: raw.categoryName ?? raw.category?.name ?? "",
+    categorySlug: raw.categorySlug ?? raw.category?.slug ?? "",
+    // priceBase = full NGN naira (new API); price = full NGN naira (old API)
+    price: raw.priceBase ?? raw.price ?? 0,
+    compareAtPrice: raw.compareAtPrice ?? null,
+    stock: raw.stock ?? 0,
+    reserved: raw.reserved ?? 0,
+    images: Array.isArray(raw.images) ? raw.images : [],
+    description: raw.description ?? "",
+    descriptionHtml: raw.descriptionHtml ?? "",
+    specs: Array.isArray(raw.specs) ? raw.specs : [],
+    status: raw.status ?? "draft",
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    ratingAvg: raw.ratingAvg ?? raw.rating?.average ?? 0,
+    ratingCount: raw.ratingCount ?? raw.rating?.count ?? 0,
+    stockStatus: raw.stockStatus ?? undefined,
+  };
+}
 
 export type ApiCategory = {
   _id: string;
@@ -409,12 +451,16 @@ export const catalog = {
       `/catalog/products${q ? `?${q}` : ""}`,
       undefined,
       { context: "none" },
-    );
+    ).then((res) => ({ ...res, items: res.items.map(normaliseProduct) }));
   },
-  getProduct(slug: string) {
-    return request<ApiProduct>("GET", `/catalog/products/${slug}`, undefined, {
-      context: "none",
-    });
+  async getProduct(slug: string) {
+    const raw = await request<ApiProduct>(
+      "GET",
+      `/catalog/products/${slug}`,
+      undefined,
+      { context: "none" },
+    );
+    return normaliseProduct(raw);
   },
   listCategories(type?: "category" | "section") {
     const q = type ? `?type=${type}` : "";
@@ -626,37 +672,57 @@ export const adminMedia = {
 // ── Admin: Catalog ─────────────────────────────────────────────────────────────
 
 export const adminCatalog = {
-  listProducts(params?: { status?: string; page?: number; limit?: number }) {
+  async listProducts(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
     if (params?.page) qs.set("page", String(params.page));
     if (params?.limit) qs.set("limit", String(params.limit));
     const q = qs.toString();
-    return request<Paginated<ApiProduct>>(
+    const res = await request<Paginated<ApiProduct>>(
       "GET",
       `/admin/catalog/products${q ? `?${q}` : ""}`,
     );
+    return { ...res, items: res.items.map(normaliseProduct) };
   },
-  createProduct(dto: unknown) {
-    return request<ApiProduct>("POST", "/admin/catalog/products", dto);
+  async createProduct(dto: unknown) {
+    const raw = await request<ApiProduct>(
+      "POST",
+      "/admin/catalog/products",
+      dto,
+    );
+    return normaliseProduct(raw);
   },
-  updateProduct(id: string, dto: unknown) {
-    return request<ApiProduct>("PATCH", `/admin/catalog/products/${id}`, dto);
+  async updateProduct(id: string, dto: unknown) {
+    const raw = await request<ApiProduct>(
+      "PATCH",
+      `/admin/catalog/products/${id}`,
+      dto,
+    );
+    return normaliseProduct(raw);
   },
   deleteProduct(id: string) {
     return request<void>("DELETE", `/admin/catalog/products/${id}`);
   },
-  toggleTag(id: string, tag: string) {
-    return request<ApiProduct>(
+  async toggleTag(id: string, tag: string) {
+    const raw = await request<ApiProduct>(
       "PATCH",
       `/admin/catalog/products/${id}/tags/${tag}`,
     );
+    return normaliseProduct(raw);
   },
   setStock(dto: { productId: string; stock: number }) {
     return request<unknown>("PATCH", "/admin/inventory/stock", dto);
   },
-  lowStock() {
-    return request<ApiProduct[]>("GET", "/admin/inventory/low-stock");
+  async lowStock() {
+    const items = await request<ApiProduct[]>(
+      "GET",
+      "/admin/inventory/low-stock",
+    );
+    return items.map(normaliseProduct);
   },
   listCategories() {
     return request<ApiCategory[]>("GET", "/admin/catalog/categories");
