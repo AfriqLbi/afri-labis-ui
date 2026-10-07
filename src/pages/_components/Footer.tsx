@@ -71,7 +71,7 @@ const FOOTER_LINKS: Record<string, { label: string; href: string }[]> = {
   ],
   Help: [
     { label: "Sizing Guide", href: "/measurements" },
-    { label: "Shipping & Returns", href: "#" },
+    { label: "Shipping & Returns", href: "/legal/terms#8" },
     { label: "FAQ", href: "#" },
     { label: "Contact Us", href: "#" },
     { label: "Store Locator", href: "#" },
@@ -170,18 +170,20 @@ export default function Footer() {
             Nigeria.
           </p>
           <div className="flex gap-6">
-            {["Privacy Policy", "Terms of Service", "Cookie Policy"].map(
-              (item) => (
-                <a
-                  key={item}
-                  href="#"
-                  className="text-muted-foreground hover:text-primary text-xs tracking-wide transition-colors"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {item}
-                </a>
-              ),
-            )}
+            {[
+              { label: "Privacy Policy", href: "/legal/privacy" },
+              { label: "Terms of Service", href: "/legal/terms" },
+              { label: "Cookie Policy", href: "/legal/cookies" },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                to={item.href}
+                className="text-muted-foreground hover:text-primary text-xs tracking-wide transition-colors"
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>

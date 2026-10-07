@@ -16,6 +16,9 @@ import OrderTrackingPage from "./pages/orders/[id]/page.tsx";
 import AccountPage from "./pages/account/page.tsx";
 import LookbookPage from "./pages/lookbook/page.tsx";
 import AboutPage from "./pages/about/page.tsx";
+import PrivacyPolicyPage from "./pages/legal/privacy/page.tsx";
+import TermsOfServicePage from "./pages/legal/terms/page.tsx";
+import CookiePolicyPage from "./pages/legal/cookies/page.tsx";
 
 // ── Customer auth pages ────────────────────────────────────────────────────────
 import SignInPage from "./pages/auth/signin/page.tsx";
@@ -52,6 +55,11 @@ export default function App() {
           <Route path="/custom-order" element={<CustomOrderPage />} />
           <Route path="/lookbook" element={<LookbookPage />} />
           <Route path="/about" element={<AboutPage />} />
+
+          {/* ── Legal ── */}
+          <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/legal/terms" element={<TermsOfServicePage />} />
+          <Route path="/legal/cookies" element={<CookiePolicyPage />} />
 
           {/* ── Customer auth ── */}
           <Route path="/auth/signin" element={<SignInPage />} />
