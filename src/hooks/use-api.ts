@@ -443,7 +443,6 @@ export function useAdminShippingQuotes() {
     refetchInterval: 60_000,
   });
 }
-
 export function useAdminShippingSettings() {
   return useQuery({
     queryKey: ["admin-shipping-settings"],

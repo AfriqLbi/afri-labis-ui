@@ -1069,10 +1069,8 @@ export const adminShipping = {
     return request<void>("DELETE", `/admin/shipping/zones/${id}`);
   },
   listQuotes() {
-    return request<Paginated<ApiOrder>>(
-      "GET",
-      "/admin/shipping/quotes?state=AWAITING_QUOTE",
-    );
+    // Returns AWAITING_QUOTE by default; admin can later filter
+    return request<ApiOrder[]>("GET", "/admin/shipping/quotes");
   },
   submitQuote(
     orderId: string,
