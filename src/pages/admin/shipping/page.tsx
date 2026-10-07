@@ -50,7 +50,7 @@ export default function AdminShippingPage() {
   const [tab, setTab] = useState<Tab>("zones");
 
   return (
-    <div className="p-6 lg:p-10 max-w-6xl">
+    <div className="p-6 lg:p-10 max-w-full">
       <div className="mb-8">
         <p
           className="text-[10px] tracking-[0.3em] uppercase text-primary mb-1"
