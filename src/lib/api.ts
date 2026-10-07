@@ -650,28 +650,65 @@ export const measurements = {
 // ── Admin: Media ───────────────────────────────────────────────────────────────
 
 export const adminMedia = {
-  async upload(file: File): Promise<string> {
-    const res = await fetch(`${API_BASE}/admin/media/upload`, {
-      method: "POST",
-      credentials: "include",
-      body: (() => {
-        const f = new FormData();
-        f.append("file", file);
-        return f;
-      })(),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+  /**
+   * Upload an image directly from the browser to Cloudinary using a signed
+   * upload (browser → Cloudinary, no file bytes through our API server).
+   *
+   * Flow:
+   *  1. GET /admin/media/sign  → get timestamp + signature from our backend
+   *  2. POST https://api.cloudinary.com/v1_1/<cloud>/image/upload  → upload
+   *
+   * Returns the secure_url of the uploaded image.
+   */
+  async upload(file: File, folder = "labiafrica/products"): Promise<string> {
+    // Step 1: get signed params from our backend
+    const signRes = await fetch(
+      `${API_BASE}/admin/media/sign?folder=${encodeURIComponent(folder)}`,
+      { credentials: "include" },
+    );
+    if (!signRes.ok) {
+      const err = await signRes.json().catch(() => ({}));
       throw new Error(
         (err as { message?: string }).message ??
-          `Upload failed (${res.status})`,
+          `Could not get upload signature (${signRes.status})`,
       );
     }
-    const json = (await res.json()) as {
+    const signJson = (await signRes.json()) as {
       success: boolean;
-      data: { secureUrl: string };
+      data: {
+        apiKey: string;
+        cloudName: string;
+        timestamp: number;
+        signature: string;
+        folder: string;
+      };
     };
-    return json.data.secureUrl;
+    const { apiKey, cloudName, timestamp, signature } = signJson.data;
+
+    // Step 2: upload directly to Cloudinary
+    const form = new FormData();
+    form.append("file", file);
+    form.append("api_key", apiKey);
+    form.append("timestamp", String(timestamp));
+    form.append("signature", signature);
+    form.append("folder", folder);
+    form.append("format", "auto");
+    form.append("quality", "auto");
+    form.append("transformation", "w_1200,c_limit");
+
+    const uploadRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: "POST", body: form },
+    );
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}));
+      throw new Error(
+        (err as { error?: { message?: string } }).error?.message ??
+          `Cloudinary upload failed (${uploadRes.status})`,
+      );
+    }
+    const result = (await uploadRes.json()) as { secure_url: string };
+    return result.secure_url;
   },
 };
 
