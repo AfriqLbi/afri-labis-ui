@@ -10,8 +10,9 @@ function apiToProduct(p: ApiProduct): Product {
   return {
     id: p.slug || p._id,
     name: p.title,
-    price: p.price / 100, // API stores price in kobo/cents
-    originalPrice: p.compareAtPrice ? p.compareAtPrice / 100 : undefined,
+    // normaliseProduct already gives full NGN naira — no division needed
+    price: p.price,
+    originalPrice: p.compareAtPrice ?? undefined,
     category: (p.categorySlug as Product["category"]) ?? "women",
     tags: p.tags ?? [],
     sizes: [],
@@ -24,9 +25,9 @@ function apiToProduct(p: ApiProduct): Product {
     description: p.description ?? "",
     details: p.specs?.map((s) => `${s.label}: ${s.value}`) ?? [],
     inStock: p.stock > 0,
-    tag: p.tags?.includes("new")
+    tag: p.tags?.includes("new_arrival")
       ? "New"
-      : p.tags?.includes("bestseller")
+      : p.tags?.includes("best_seller")
         ? "Bestseller"
         : p.compareAtPrice
           ? "Sale"
