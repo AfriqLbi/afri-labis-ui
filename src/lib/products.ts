@@ -11,6 +11,8 @@ export type Product = {
   description: string;
   details: string[];
   inStock: boolean;
+  /** Available stock (stock − reserved). Used to cap cart quantity. */
+  availableStock?: number;
   tag?: "New" | "Bestseller" | "Limited" | "Sale";
 };
 

@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
-import { X, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
+import { X, Minus, Plus, ShoppingBag, ArrowRight, Truck } from "lucide-react";
 import { useCart } from "@/hooks/use-cart.tsx";
-import { formatPrice } from "@/lib/products.ts";
 import { Link } from "react-router-dom";
 import { useCurrency } from "@/components/providers/currency.tsx";
 
@@ -15,10 +14,7 @@ export default function CartDrawer() {
     subtotal,
     itemCount,
   } = useCart();
-  const { formatAmount, activeCurrency } = useCurrency();
-
-  const shipping = subtotal >= 50000 ? 0 : 3500;
-  const total = subtotal + shipping;
+  const { formatAmount } = useCurrency();
 
   return (
     <AnimatePresence>
@@ -61,6 +57,7 @@ export default function CartDrawer() {
               <button
                 onClick={closeCart}
                 className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                aria-label="Close cart"
               >
                 <X size={18} />
               </button>
@@ -111,41 +108,6 @@ export default function CartDrawer() {
             {/* Footer */}
             {items.length > 0 && (
               <div className="border-t border-border px-6 py-6 shrink-0 space-y-4">
-                {/* Free shipping banner */}
-                {subtotal < 50000 && (
-                  <div className="bg-muted/60 px-4 py-3 text-center">
-                    <p
-                      className="text-xs text-muted-foreground"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      Add{" "}
-                      <span className="text-primary font-semibold">
-                        {formatPrice(50000 - subtotal)}
-                      </span>{" "}
-                      more for free delivery
-                    </p>
-                    {/* Progress bar */}
-                    <div className="mt-2 h-[2px] bg-border w-full">
-                      <div
-                        className="h-full bg-primary transition-all duration-500"
-                        style={{
-                          width: `${Math.min((subtotal / 50000) * 100, 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {subtotal >= 50000 && (
-                  <div className="bg-primary/10 border border-primary/30 px-4 py-3 text-center">
-                    <p
-                      className="text-xs text-primary font-semibold"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      You qualify for free delivery!
-                    </p>
-                  </div>
-                )}
-
                 {/* Totals */}
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -162,7 +124,9 @@ export default function CartDrawer() {
                       {formatAmount(subtotal * 100)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+
+                  {/* Shipping — calculated at checkout based on address + zone */}
+                  <div className="flex justify-between items-center">
                     <span
                       className="text-xs tracking-wide text-muted-foreground uppercase"
                       style={{ fontFamily: "'Montserrat', sans-serif" }}
@@ -170,24 +134,26 @@ export default function CartDrawer() {
                       Shipping
                     </span>
                     <span
-                      className="text-sm text-foreground"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground italic"
                       style={{ fontFamily: "'Montserrat', sans-serif" }}
                     >
-                      {shipping === 0 ? "Free" : formatAmount(shipping * 100)}
+                      <Truck size={11} />
+                      Calculated at checkout
                     </span>
                   </div>
+
                   <div className="flex justify-between border-t border-border pt-3 mt-1">
                     <span
                       className="text-xs tracking-[0.15em] uppercase text-foreground font-semibold"
                       style={{ fontFamily: "'Montserrat', sans-serif" }}
                     >
-                      Total
+                      Subtotal
                     </span>
                     <span
                       className="text-lg text-primary font-semibold"
                       style={{ fontFamily: "'Montserrat', sans-serif" }}
                     >
-                      {formatAmount(total * 100)}
+                      {formatAmount(subtotal * 100)}
                     </span>
                   </div>
                 </div>
@@ -224,6 +190,12 @@ type CartItemProps = {
 
 function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
   const { formatAmount } = useCurrency();
+
+  // Cap quantity at the product's available stock (falls back to a high cap
+  // for static/mock products that don't carry stock info).
+  const maxQty = item.product.availableStock ?? 99;
+  const canIncrease = item.quantity < maxQty;
+
   return (
     <div className="flex gap-4">
       <div className="w-20 h-24 shrink-0 overflow-hidden">
@@ -244,6 +216,7 @@ function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
           <button
             onClick={onRemove}
             className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0 mt-0.5"
+            aria-label="Remove item"
           >
             <X size={13} />
           </button>
@@ -254,12 +227,24 @@ function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
         >
           {item.color} · {item.size}
         </p>
+
+        {/* Stock warning when at the limit */}
+        {item.quantity >= maxQty && maxQty < 99 && (
+          <p
+            className="text-[10px] text-amber-500 mt-1"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            Only {maxQty} in stock
+          </p>
+        )}
+
         <div className="flex items-center justify-between mt-3">
           {/* Qty control */}
           <div className="flex items-center border border-border">
             <button
               onClick={() => onUpdateQty(item.quantity - 1)}
               className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Decrease quantity"
             >
               <Minus size={11} />
             </button>
@@ -270,8 +255,17 @@ function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
               {item.quantity}
             </span>
             <button
-              onClick={() => onUpdateQty(item.quantity + 1)}
-              className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              onClick={() =>
+                canIncrease ? onUpdateQty(item.quantity + 1) : undefined
+              }
+              disabled={!canIncrease}
+              className={`w-7 h-7 flex items-center justify-center transition-colors ${
+                canIncrease
+                  ? "text-muted-foreground hover:text-foreground cursor-pointer"
+                  : "text-muted-foreground/30 cursor-not-allowed"
+              }`}
+              aria-label="Increase quantity"
+              title={!canIncrease ? `Maximum stock: ${maxQty}` : undefined}
             >
               <Plus size={11} />
             </button>

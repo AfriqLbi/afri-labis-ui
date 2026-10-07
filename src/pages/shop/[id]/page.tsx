@@ -41,6 +41,7 @@ function toLocalProduct(p: ApiProduct) {
     description: p.description,
     details: p.specs.map((s) => `${s.label}: ${s.value}`),
     inStock: p.stock - p.reserved > 0,
+    availableStock: Math.max(0, p.stock - p.reserved),
     tag: p.tags.includes("new_arrival")
       ? ("New" as const)
       : p.tags.includes("best_seller")
