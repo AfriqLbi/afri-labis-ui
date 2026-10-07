@@ -401,3 +401,142 @@ export function useAdminReorderLookbook() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-lookbook"] }),
   });
 }
+
+// ── Shipping estimate ─────────────────────────────────────────────────────────
+
+import { adminShipping, shipping } from "@/lib/api.ts";
+
+export function useShippingEstimate(
+  address: { country: string; state?: string } | null,
+  cartId?: string,
+  pickup?: boolean,
+) {
+  return useQuery({
+    queryKey: ["shipping-estimate", address, cartId, pickup],
+    queryFn: () =>
+      shipping.estimate({
+        address: address!,
+        cartId,
+        pickup,
+      }),
+    enabled: !!address?.country,
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+// ── Admin: Shipping ───────────────────────────────────────────────────────────
+
+export function useAdminShippingZones() {
+  return useQuery({
+    queryKey: ["admin-shipping-zones"],
+    queryFn: () => adminShipping.listZones(),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminShippingQuotes() {
+  return useQuery({
+    queryKey: ["admin-shipping-quotes"],
+    queryFn: () => adminShipping.listQuotes(),
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useAdminShippingSettings() {
+  return useQuery({
+    queryKey: ["admin-shipping-settings"],
+    queryFn: () => adminShipping.getSettings(),
+    staleTime: 60_000,
+  });
+}
+
+export function useAdminCreateShippingZone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: Parameters<typeof adminShipping.createZone>[0]) =>
+      adminShipping.createZone(dto),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-shipping-zones"] }),
+  });
+}
+
+export function useAdminUpdateShippingZone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      dto,
+    }: {
+      id: string;
+      dto: Parameters<typeof adminShipping.updateZone>[1];
+    }) => adminShipping.updateZone(id, dto),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-shipping-zones"] }),
+  });
+}
+
+export function useAdminDeleteShippingZone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminShipping.deleteZone(id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-shipping-zones"] }),
+  });
+}
+
+export function useAdminSubmitShippingQuote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      dto,
+    }: {
+      orderId: string;
+      dto: Parameters<typeof adminShipping.submitQuote>[1];
+    }) => adminShipping.submitQuote(orderId, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-shipping-quotes"] });
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+    },
+  });
+}
+
+export function useAdminOverrideShippingFee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      dto,
+    }: {
+      orderId: string;
+      dto: Parameters<typeof adminShipping.overrideFee>[1];
+    }) => adminShipping.overrideFee(orderId, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-orders"] }),
+  });
+}
+
+export function useAdminCreateShippingAdjustment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      dto,
+    }: {
+      orderId: string;
+      dto: Parameters<typeof adminShipping.createAdjustment>[1];
+    }) => adminShipping.createAdjustment(orderId, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-orders"] }),
+  });
+}
+
+export function useAdminUpdateShippingSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: Parameters<typeof adminShipping.updateSettings>[0]) =>
+      adminShipping.updateSettings(dto),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-shipping-settings"] }),
+  });
+}

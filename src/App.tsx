@@ -36,6 +36,7 @@ import AdminProductionPage from "./pages/admin/production/page.tsx";
 import AdminCurrencyPage from "./pages/admin/currency/page.tsx";
 import AdminCategoriesPage from "./pages/admin/categories/page.tsx";
 import AdminLookbookPage from "./pages/admin/lookbook/page.tsx";
+import AdminShippingPage from "./pages/admin/shipping/page.tsx";
 
 import NotFound from "./pages/NotFound.tsx";
 
@@ -60,9 +61,12 @@ export default function App() {
           {/* ── Protected customer routes ── */}
           <Route element={<RequireAuth />}>
             <Route path="/measurements" element={<MeasurementsPage />} />
-            <Route path="/orders/:id" element={<OrderTrackingPage />} />
             <Route path="/account" element={<AccountPage />} />
           </Route>
+
+          {/* ── Order tracking — accessible to logged-in owners AND guests
+                with a signed token (quote-order pay links) ── */}
+          <Route path="/orders/:id" element={<OrderTrackingPage />} />
 
           {/* ── Checkout — guests and signed-in users both allowed ── */}
           <Route path="/checkout" element={<CheckoutPage />} />
@@ -82,6 +86,7 @@ export default function App() {
               <Route path="analytics" element={<AdminAnalyticsPage />} />
               <Route path="production" element={<AdminProductionPage />} />
               <Route path="currency" element={<AdminCurrencyPage />} />
+              <Route path="shipping" element={<AdminShippingPage />} />
             </Route>
           </Route>
 

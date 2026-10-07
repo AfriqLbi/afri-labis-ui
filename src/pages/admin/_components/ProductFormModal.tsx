@@ -48,10 +48,17 @@ function emptyForm() {
     specs: [] as Spec[],
     status: "draft" as (typeof STATUSES)[number],
     tags: [] as string[],
+    packageWeightGrams: "",
+    packageDimsL: "",
+    packageDimsW: "",
+    packageDimsH: "",
   };
 }
 
 function productToForm(p: ApiProduct) {
+  const dims = (
+    p as unknown as { packageDims?: { l: number; w: number; h: number } | null }
+  ).packageDims;
   return {
     sku: p.sku,
     title: p.title,
@@ -65,6 +72,13 @@ function productToForm(p: ApiProduct) {
     specs: p.specs as Spec[],
     status: p.status as (typeof STATUSES)[number],
     tags: p.tags ?? [],
+    packageWeightGrams: String(
+      (p as unknown as { packageWeightGrams?: number | null })
+        .packageWeightGrams ?? "",
+    ),
+    packageDimsL: dims ? String(dims.l) : "",
+    packageDimsW: dims ? String(dims.w) : "",
+    packageDimsH: dims ? String(dims.h) : "",
   };
 }
 
@@ -245,6 +259,17 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
     if (form.compareAtPrice)
       dto.compareAtPrice = parseFloat(form.compareAtPrice);
     if (form.categoryId) dto.categoryId = form.categoryId;
+
+    // Shipping weight / dimensions
+    if (form.packageWeightGrams !== "")
+      dto.packageWeightGrams = parseInt(form.packageWeightGrams, 10);
+    if (form.packageDimsL && form.packageDimsW && form.packageDimsH) {
+      dto.packageDims = {
+        l: parseFloat(form.packageDimsL),
+        w: parseFloat(form.packageDimsW),
+        h: parseFloat(form.packageDimsH),
+      };
+    }
 
     if (!isEdit) {
       dto.sku = form.sku.trim();
@@ -638,6 +663,57 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
                     replace it.
                   </p>
                 )}
+              </Section>
+
+              {/* ── Shipping weight / dimensions ── */}
+              <Section
+                title="Shipping"
+                hint="Required for automatic fee calculation"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field
+                    label="Packed weight (grams)"
+                    hint="Required before publishing"
+                  >
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.packageWeightGrams}
+                      onChange={(e) =>
+                        set("packageWeightGrams", e.target.value)
+                      }
+                      placeholder="850"
+                      className="checkout-input"
+                    />
+                  </Field>
+                </div>
+                <div>
+                  <p
+                    className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1.5"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    Packed dimensions (cm) — L × W × H
+                    <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">
+                      used for volumetric weight
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      ["packageDimsL", "packageDimsW", "packageDimsH"] as const
+                    ).map((k, i) => (
+                      <input
+                        key={k}
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={form[k]}
+                        onChange={(e) => set(k, e.target.value)}
+                        placeholder={["L", "W", "H"][i]}
+                        className="checkout-input text-sm"
+                      />
+                    ))}
+                  </div>
+                </div>
               </Section>
 
               {/* ── Specifications ── */}

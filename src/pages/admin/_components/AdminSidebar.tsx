@@ -11,6 +11,7 @@ import {
   Tag,
   BookImage,
   LogOut,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils.ts";
 import { useAdminAuth } from "@/hooks/use-auth.ts";
@@ -33,6 +34,7 @@ const NAV = [
     icon: <BarChart2 size={15} />,
   },
   { label: "Currency", href: "/admin/currency", icon: <Coins size={15} /> },
+  { label: "Shipping", href: "/admin/shipping", icon: <Truck size={15} /> },
 ];
 
 export default function AdminSidebar({

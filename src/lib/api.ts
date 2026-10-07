@@ -163,6 +163,7 @@ export type ApiOrder = {
   fxBuffer: number;
   promoCode: string | null;
   status:
+    | "awaiting_shipping_quote"
     | "pending_payment"
     | "paid"
     | "failed"
@@ -174,6 +175,25 @@ export type ApiOrder = {
   paymentReference: string;
   checkoutUrl: string | null;
   shippingAddress: ShippingAddress;
+  shippingFee: number;
+  shippingFeeSource: string | null;
+  shippingZoneName: string | null;
+  chargeableWeightGrams: number | null;
+  shippingStatus:
+    | "NOT_CALCULATED"
+    | "CALCULATED"
+    | "AWAITING_QUOTE"
+    | "QUOTED"
+    | "PAID"
+    | "PICKUP"
+    | "EXPIRED";
+  shippingQuote: ApiShippingQuote | null;
+  shippingAdjustments: {
+    type: string;
+    amount: number;
+    reason: string;
+    createdAt: string;
+  }[];
   productionStage:
     "cutting" | "sewing" | "quality_check" | "ready" | "delivered" | null;
   reservationExpiresAt: string | null;
@@ -556,6 +576,27 @@ export const orders = {
   get(id: string) {
     return request<ApiOrder>("GET", `/orders/${id}`);
   },
+  pay(
+    id: string,
+    provider?: "paystack" | "flutterwave" | "stripe",
+    linkToken?: string,
+  ) {
+    return request<{ checkoutUrl: string; reference: string }>(
+      "POST",
+      `/orders/${id}/pay`,
+      { provider, linkToken },
+    );
+  },
+  requestRequote(id: string) {
+    return request<ApiOrder>("POST", `/orders/${id}/shipping/requote`);
+  },
+  updateShippingAddress(id: string, address: ShippingAddress) {
+    return request<ApiOrder>(
+      "PATCH",
+      `/orders/${id}/shipping-address`,
+      address,
+    );
+  },
   getProductionHistory(orderId: string) {
     return request<{
       currentStage: string | null;
@@ -928,6 +969,154 @@ export const adminAnalytics = {
     return request<
       { productId: string; title: string; revenue: number; units: number }[]
     >("GET", "/admin/analytics/top-products");
+  },
+};
+
+// ── Shipping ───────────────────────────────────────────────────────────────────
+
+export type ShippingEstimateResult =
+  | {
+      status: "CALCULATED";
+      zone: string;
+      fee: { currency: string; amount: number };
+      source: string;
+      chargeableWeightGrams: number | null;
+      etaDays: [number, number] | null;
+      customerNote: string | null;
+    }
+  | {
+      status: "QUOTE_REQUIRED";
+      zone: string;
+      message: string;
+      estimateRange: { minNgn: number; maxNgn: number } | null;
+      etaDays: [number, number] | null;
+      customerNote: string | null;
+    }
+  | {
+      status: "PICKUP";
+      zone: string;
+      fee: { currency: string; amount: 0 };
+      source: "pickup";
+      etaDays: [number, number] | null;
+    }
+  | { status: "NO_ZONE"; message: string };
+
+export const shipping = {
+  estimate(dto: {
+    address: { country: string; state?: string };
+    pickup?: boolean;
+    cartId?: string;
+  }) {
+    return request<ShippingEstimateResult>("POST", "/shipping/estimate", dto, {
+      context: "none",
+    });
+  },
+};
+
+export type ApiShippingZone = {
+  _id: string;
+  name: string;
+  mode: "fixed" | "quote";
+  countries: string[];
+  states: string[];
+  priority: number;
+  isFallback: boolean;
+  isActive: boolean;
+  rates: { minGrams: number; maxGrams: number; feeNgn: number }[];
+  flatFeeNgn?: number;
+  freeOverNgn?: number;
+  estimateRange?: { minNgn: number; maxNgn: number };
+  etaMinDays?: number;
+  etaMaxDays?: number;
+  pickupAvailable: boolean;
+  customerNote?: string;
+};
+
+export type ApiShippingSettings = {
+  quoteSlaHours: number;
+  quoteValidDays: number;
+  adminAlertEmails: string;
+  quoteAmountCapNgn: number;
+};
+
+export type ApiShippingQuote = {
+  requestedAt?: string;
+  quotedAt?: string;
+  currency?: string;
+  amount?: number;
+  carrier?: string;
+  etaDays?: number;
+  note?: string;
+  validUntil?: string;
+  state: "REQUESTED" | "QUOTED" | "EXPIRED" | "ACCEPTED" | "SUPERSEDED";
+};
+
+export const adminShipping = {
+  listZones() {
+    return request<ApiShippingZone[]>("GET", "/admin/shipping/zones");
+  },
+  createZone(dto: Omit<ApiShippingZone, "_id">) {
+    return request<ApiShippingZone>("POST", "/admin/shipping/zones", dto);
+  },
+  updateZone(id: string, dto: Partial<Omit<ApiShippingZone, "_id">>) {
+    return request<ApiShippingZone>(
+      "PATCH",
+      `/admin/shipping/zones/${id}`,
+      dto,
+    );
+  },
+  deleteZone(id: string) {
+    return request<void>("DELETE", `/admin/shipping/zones/${id}`);
+  },
+  listQuotes() {
+    return request<Paginated<ApiOrder>>(
+      "GET",
+      "/admin/shipping/quotes?state=AWAITING_QUOTE",
+    );
+  },
+  submitQuote(
+    orderId: string,
+    dto: {
+      amount: number;
+      currency: string;
+      carrier?: string;
+      etaDays?: number;
+      note?: string;
+      validDays?: number;
+    },
+  ) {
+    return request<ApiOrder>(
+      "POST",
+      `/admin/shipping/orders/${orderId}/quote`,
+      dto,
+    );
+  },
+  overrideFee(orderId: string, dto: { amount: number; reason: string }) {
+    return request<ApiOrder>(
+      "PATCH",
+      `/admin/shipping/orders/${orderId}/shipping-fee`,
+      dto,
+    );
+  },
+  createAdjustment(
+    orderId: string,
+    dto: { type: "refund" | "extra_charge"; amount: number; reason: string },
+  ) {
+    return request<ApiOrder>(
+      "POST",
+      `/admin/orders/${orderId}/shipping-adjustment`,
+      dto,
+    );
+  },
+  getSettings() {
+    return request<ApiShippingSettings>("GET", "/admin/shipping/settings");
+  },
+  updateSettings(dto: Partial<ApiShippingSettings>) {
+    return request<ApiShippingSettings>(
+      "PATCH",
+      "/admin/shipping/settings",
+      dto,
+    );
   },
 };
 

@@ -1,4 +1,5 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { motion } from "motion/react";
 import {
   Package,
@@ -11,6 +12,10 @@ import {
   Calendar,
   MessageCircle,
   Spool,
+  Clock,
+  AlertCircle,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { useOrder } from "@/hooks/use-api.ts";
 import { formatPrice } from "@/lib/products.ts";
@@ -18,12 +23,14 @@ import { formatMinorUnits } from "@/lib/currency.ts";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import Header from "../_components/Header.tsx";
 import Footer from "../_components/Footer.tsx";
+import { orders as ordersApi, ApiError } from "@/lib/api.ts";
+import { toast } from "sonner";
 import type { ApiOrder } from "@/lib/api.ts";
 
-// ── WhatsApp number (replace with real number or load from env) ───────────────
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2348000000000";
 
-// ── Production stage ordering ─────────────────────────────────────────────────
+// ── Production stages ─────────────────────────────────────────────────────────
+
 type Stage = {
   key: ApiOrder["productionStage"] | "received";
   label: string;
@@ -70,7 +77,6 @@ const STAGES: Stage[] = [
   },
 ];
 
-// Map API status → display stage key
 function resolveStageKey(order: ApiOrder): Stage["key"] {
   if (order.status === "fulfilled") return "delivered";
   if (order.productionStage) return order.productionStage;
@@ -85,15 +91,23 @@ function formatDate(iso: string) {
     year: "numeric",
   });
 }
-
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 function formatAddr(addr: ApiOrder["shippingAddress"]): string {
   return [addr.line1, addr.line2, addr.city, addr.state, addr.country]
     .filter(Boolean)
     .join(", ");
 }
 
-// ── Status badge label ────────────────────────────────────────────────────────
 const STATUS_LABELS: Partial<Record<ApiOrder["status"], string>> = {
+  awaiting_shipping_quote: "Awaiting Shipping Quote",
   pending_payment: "Awaiting Payment",
   paid: "Order Confirmed",
   fulfilled: "Delivered",
@@ -101,9 +115,30 @@ const STATUS_LABELS: Partial<Record<ApiOrder["status"], string>> = {
   failed: "Payment Failed",
 };
 
+// ── Shipping status helpers ───────────────────────────────────────────────────
+
+function shippingStatusLabel(status: ApiOrder["shippingStatus"]): string {
+  const map: Record<ApiOrder["shippingStatus"], string> = {
+    NOT_CALCULATED: "Shipping TBD",
+    CALCULATED: "Shipping calculated",
+    AWAITING_QUOTE: "Awaiting shipping quote",
+    QUOTED: "Quote ready — payment due",
+    PAID: "Shipping paid",
+    PICKUP: "Pickup",
+    EXPIRED: "Quote expired",
+  };
+  return map[status] ?? status;
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: order, isLoading, isError } = useOrder(id ?? "");
+  const [searchParams] = useSearchParams();
+  const linkToken = searchParams.get("token") ?? undefined;
+  const { data: order, isLoading, isError, refetch } = useOrder(id ?? "");
+  const [requoting, setRequoting] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   if (isLoading) {
     return (
@@ -128,13 +163,6 @@ export default function OrderTrackingPage() {
             >
               Order not found
             </p>
-            <p
-              className="text-xs tracking-wide text-muted-foreground"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              Order <span className="text-primary">{id}</span> could not be
-              located.
-            </p>
             <Link
               to="/shop"
               className="inline-flex items-center gap-2 text-xs tracking-[0.2em] uppercase text-primary underline underline-offset-4"
@@ -153,16 +181,62 @@ export default function OrderTrackingPage() {
   const currentIdx = STAGES.findIndex((s) => s.key === currentStageKey);
   const progressPct = Math.round(((currentIdx + 1) / STAGES.length) * 100);
   const statusLabel =
-    order.productionStage === "cutting" ||
-    order.productionStage === "sewing" ||
-    order.productionStage === "quality_check"
-      ? "In Production"
-      : (STATUS_LABELS[order.status] ?? "Order Confirmed");
+    order.status === "awaiting_shipping_quote"
+      ? "Awaiting Shipping Quote"
+      : order.productionStage === "cutting" ||
+          order.productionStage === "sewing" ||
+          order.productionStage === "quality_check"
+        ? "In Production"
+        : (STATUS_LABELS[order.status] ?? "Order Confirmed");
 
   const whatsappText = encodeURIComponent(
     `Hi LABI, I have a question about my order ${order.orderNumber}`,
   );
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappText}`;
+
+  const isQuoteOrder =
+    order.status === "awaiting_shipping_quote" ||
+    order.shippingStatus === "AWAITING_QUOTE";
+  const isQuoteReady =
+    order.shippingStatus === "QUOTED" && order.status === "pending_payment";
+  const isQuoteExpired = order.shippingStatus === "EXPIRED";
+
+  // Quote validity
+  const quoteValidUntil = order.shippingQuote?.validUntil
+    ? new Date(order.shippingQuote.validUntil)
+    : null;
+  const quoteExpired = quoteValidUntil ? quoteValidUntil < new Date() : false;
+
+  const handlePayNow = async () => {
+    setPaying(true);
+    try {
+      const result = await ordersApi.pay(id!, "paystack", linkToken);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const url = (result as any).checkoutUrl;
+      if (url) window.location.href = url;
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not initiate payment",
+      );
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const handleRequestRequote = async () => {
+    setRequoting(true);
+    try {
+      await ordersApi.requestRequote(id!);
+      toast.success("Re-quote requested. We'll email you once the fee is set.");
+      refetch();
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not request a requote",
+      );
+    } finally {
+      setRequoting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,15 +272,14 @@ export default function OrderTrackingPage() {
               className="flex items-center gap-2 border border-[#25D366] text-[#25D366] px-5 py-3 text-xs tracking-[0.15em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer self-start sm:self-auto"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
-              <MessageCircle size={14} />
-              Ask on WhatsApp
+              <MessageCircle size={14} /> Ask on WhatsApp
             </a>
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid lg:grid-cols-[1fr_360px] gap-12">
-            {/* Left — timeline */}
+            {/* ── Left: status timeline ── */}
             <div className="space-y-10">
               {/* Status badge */}
               <div className="flex items-center gap-3">
@@ -219,8 +292,23 @@ export default function OrderTrackingPage() {
                 </span>
               </div>
 
-              {/* Progress bar */}
-              {order.status === "paid" || order.status === "fulfilled" ? (
+              {/* ── Shipping quote timeline ── */}
+              <ShippingQuoteTimeline
+                order={order}
+                isQuoteOrder={isQuoteOrder}
+                isQuoteReady={isQuoteReady}
+                isQuoteExpired={isQuoteExpired}
+                quoteExpired={quoteExpired}
+                quoteValidUntil={quoteValidUntil}
+                paying={paying}
+                requoting={requoting}
+                onPayNow={handlePayNow}
+                onRequestRequote={handleRequestRequote}
+                formatDateTime={formatDateTime}
+              />
+
+              {/* Progress bar — only for paid / in production orders */}
+              {(order.status === "paid" || order.status === "fulfilled") && (
                 <div>
                   <div className="flex justify-between mb-2">
                     <span
@@ -249,30 +337,32 @@ export default function OrderTrackingPage() {
                     />
                   </div>
                 </div>
-              ) : null}
-
-              {/* Pending payment notice */}
-              {order.status === "pending_payment" && order.checkoutUrl && (
-                <div className="bg-primary/5 border border-primary/20 px-5 py-4 flex gap-3 items-start">
-                  <div className="w-2 h-2 bg-primary mt-1 shrink-0" />
-                  <div>
-                    <p
-                      className="text-sm font-light text-foreground leading-relaxed mb-2"
-                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                    >
-                      Your order is awaiting payment. Complete payment to begin
-                      production.
-                    </p>
-                    <a
-                      href={order.checkoutUrl}
-                      className="text-xs tracking-[0.2em] uppercase text-primary underline underline-offset-4"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      Complete Payment →
-                    </a>
-                  </div>
-                </div>
               )}
+
+              {/* Pending payment (non-quote, has checkout URL) */}
+              {order.status === "pending_payment" &&
+                !isQuoteReady &&
+                order.checkoutUrl && (
+                  <div className="bg-primary/5 border border-primary/20 px-5 py-4 flex gap-3 items-start">
+                    <div className="w-2 h-2 bg-primary mt-1 shrink-0" />
+                    <div>
+                      <p
+                        className="text-sm font-light text-foreground leading-relaxed mb-2"
+                        style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                      >
+                        Your order is awaiting payment. Complete payment to
+                        begin production.
+                      </p>
+                      <a
+                        href={order.checkoutUrl}
+                        className="text-xs tracking-[0.2em] uppercase text-primary underline underline-offset-4"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        Complete Payment →
+                      </a>
+                    </div>
+                  </div>
+                )}
 
               {/* Production timeline */}
               {(order.status === "paid" || order.status === "fulfilled") && (
@@ -300,13 +390,7 @@ export default function OrderTrackingPage() {
                           >
                             <div className="relative z-10 shrink-0">
                               <div
-                                className={`w-8 h-8 flex items-center justify-center border-2 transition-all ${
-                                  isCompleted
-                                    ? "bg-primary border-primary text-primary-foreground"
-                                    : isCurrent
-                                      ? "bg-primary/10 border-primary text-primary"
-                                      : "bg-background border-border text-muted-foreground"
-                                }`}
+                                className={`w-8 h-8 flex items-center justify-center border-2 transition-all ${isCompleted ? "bg-primary border-primary text-primary-foreground" : isCurrent ? "bg-primary/10 border-primary text-primary" : "bg-background border-border text-muted-foreground"}`}
                               >
                                 {isCompleted ? (
                                   <CheckCircle
@@ -327,11 +411,7 @@ export default function OrderTrackingPage() {
                               className={`pt-1 pb-2 ${isPending ? "opacity-40" : ""}`}
                             >
                               <p
-                                className={`text-xs font-semibold tracking-wide mb-0.5 ${
-                                  isCompleted || isCurrent
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
-                                }`}
+                                className={`text-xs font-semibold tracking-wide mb-0.5 ${isCompleted || isCurrent ? "text-foreground" : "text-muted-foreground"}`}
                                 style={{
                                   fontFamily: "'Montserrat', sans-serif",
                                 }}
@@ -360,7 +440,6 @@ export default function OrderTrackingPage() {
                 </div>
               )}
 
-              {/* Estimated delivery */}
               {order.fulfilledAt && (
                 <div className="flex items-start gap-4 border border-border px-5 py-5">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -411,7 +490,7 @@ export default function OrderTrackingPage() {
               </div>
             </div>
 
-            {/* Right — order summary */}
+            {/* ── Right: order summary ── */}
             <div className="space-y-6">
               <div className="bg-card border border-border p-6">
                 <p
@@ -488,6 +567,46 @@ export default function OrderTrackingPage() {
                       </span>
                     </div>
                   )}
+                  {(order.shippingFee ?? 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span
+                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        Shipping
+                        {order.shippingZoneName
+                          ? ` · ${order.shippingZoneName}`
+                          : ""}
+                      </span>
+                      <span
+                        className="text-sm text-foreground"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        {order.chargeCurrency && order.chargeCurrency !== "NGN"
+                          ? formatMinorUnits(
+                              order.shippingFee ?? 0,
+                              order.chargeCurrency,
+                            )
+                          : formatPrice((order.shippingFee ?? 0) / 100)}
+                      </span>
+                    </div>
+                  )}
+                  {order.shippingStatus === "AWAITING_QUOTE" && (
+                    <div className="flex justify-between">
+                      <span
+                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        Shipping
+                      </span>
+                      <span
+                        className="text-xs italic text-primary"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        Quote pending
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-2 border-t border-border">
                     <span
                       className="text-xs uppercase tracking-[0.15em] text-foreground font-semibold"
@@ -521,7 +640,9 @@ export default function OrderTrackingPage() {
                           className="text-xl font-semibold text-primary"
                           style={{ fontFamily: "'Montserrat', sans-serif" }}
                         >
-                          {formatPrice(order.total)}
+                          {order.shippingStatus === "AWAITING_QUOTE"
+                            ? `${formatPrice(order.total)} + shipping`
+                            : formatPrice(order.total)}
                         </span>
                       )}
                     </div>
@@ -559,6 +680,251 @@ export default function OrderTrackingPage() {
         </div>
       </div>
       <Footer />
+    </div>
+  );
+}
+
+// ── Shipping quote timeline panel ─────────────────────────────────────────────
+
+function ShippingQuoteTimeline({
+  order,
+  isQuoteOrder,
+  isQuoteReady,
+  isQuoteExpired,
+  quoteExpired,
+  quoteValidUntil,
+  paying,
+  requoting,
+  onPayNow,
+  onRequestRequote,
+  formatDateTime,
+}: {
+  order: ApiOrder;
+  isQuoteOrder: boolean;
+  isQuoteReady: boolean;
+  isQuoteExpired: boolean;
+  quoteExpired: boolean;
+  quoteValidUntil: Date | null;
+  paying: boolean;
+  requoting: boolean;
+  onPayNow: () => void;
+  onRequestRequote: () => void;
+  formatDateTime: (iso: string) => string;
+}) {
+  // Only show for orders that have ever been in the quote flow
+  const hasQuoteFlow =
+    isQuoteOrder ||
+    isQuoteReady ||
+    isQuoteExpired ||
+    order.shippingStatus === "AWAITING_QUOTE" ||
+    order.shippingStatus === "QUOTED" ||
+    order.shippingStatus === "EXPIRED";
+
+  if (!hasQuoteFlow) return null;
+
+  const steps: {
+    key: string;
+    label: string;
+    done: boolean;
+    active: boolean;
+    expired?: boolean;
+  }[] = [
+    {
+      key: "requested",
+      label: "Quote requested",
+      done: true,
+      active: order.shippingStatus === "AWAITING_QUOTE",
+    },
+    {
+      key: "quoted",
+      label: "Quote received",
+      done:
+        order.shippingStatus === "QUOTED" ||
+        order.shippingStatus === "PAID" ||
+        order.status === "paid",
+      active: order.shippingStatus === "QUOTED" && !quoteExpired,
+      expired: isQuoteExpired || quoteExpired,
+    },
+    {
+      key: "paid",
+      label: "Payment confirmed",
+      done: order.status === "paid" || order.status === "fulfilled",
+      active: false,
+    },
+  ];
+
+  return (
+    <div className="border border-border bg-card/50 px-5 py-5 space-y-5">
+      <p
+        className="text-[10px] tracking-[0.3em] uppercase text-primary font-semibold"
+        style={{ fontFamily: "'Montserrat', sans-serif" }}
+      >
+        Shipping Quote Status
+      </p>
+
+      {/* Steps */}
+      <div className="relative">
+        <div className="absolute left-[11px] top-0 bottom-0 w-[1px] bg-border" />
+        <div className="space-y-5">
+          {steps.map((s) => (
+            <div key={s.key} className="flex gap-4 relative">
+              <div
+                className={`relative z-10 w-6 h-6 flex items-center justify-center shrink-0 border ${s.done ? "bg-primary border-primary" : s.active ? "bg-primary/10 border-primary" : "bg-background border-border"} ${s.expired ? "bg-destructive/10 border-destructive" : ""}`}
+              >
+                {s.done ? (
+                  <CheckCircle size={12} className="text-primary-foreground" />
+                ) : s.expired ? (
+                  <AlertCircle size={12} className="text-destructive" />
+                ) : (
+                  <div
+                    className={`w-2 h-2 ${s.active ? "bg-primary animate-pulse" : "bg-border"}`}
+                  />
+                )}
+              </div>
+              <p
+                className={`text-xs pt-0.5 ${s.done ? "text-foreground" : s.expired ? "text-destructive" : "text-muted-foreground"}`}
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                {s.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Quote details */}
+      {order.shippingQuote &&
+        (order.shippingStatus === "QUOTED" ||
+          order.shippingStatus === "PAID") && (
+          <div
+            className="bg-muted/30 border border-border px-4 py-3 space-y-1.5 text-xs"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {order.shippingQuote.amount != null && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                  Shipping fee
+                </span>
+                <span className="text-primary font-semibold">
+                  {order.chargeCurrency !== "NGN"
+                    ? formatMinorUnits(
+                        order.shippingQuote.amount,
+                        order.chargeCurrency,
+                      )
+                    : formatPrice((order.shippingQuote.amount ?? 0) / 100)}
+                </span>
+              </div>
+            )}
+            {order.shippingQuote.carrier && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                  Carrier
+                </span>
+                <span className="text-foreground">
+                  {order.shippingQuote.carrier}
+                </span>
+              </div>
+            )}
+            {order.shippingQuote.etaDays && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                  Est. delivery
+                </span>
+                <span className="text-foreground">
+                  {order.shippingQuote.etaDays} days
+                </span>
+              </div>
+            )}
+            {order.shippingQuote.validUntil && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                  Quote valid until
+                </span>
+                <span
+                  className={
+                    quoteExpired ? "text-destructive" : "text-foreground"
+                  }
+                >
+                  {formatDateTime(order.shippingQuote.validUntil)}
+                </span>
+              </div>
+            )}
+            {order.shippingQuote.note && (
+              <p className="text-muted-foreground text-[11px] pt-1 italic">
+                {order.shippingQuote.note}
+              </p>
+            )}
+          </div>
+        )}
+
+      {/* CTA: awaiting quote */}
+      {order.shippingStatus === "AWAITING_QUOTE" && (
+        <div
+          className="flex items-start gap-3 text-sm text-muted-foreground"
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+        >
+          <Clock size={15} className="text-primary mt-0.5 shrink-0" />
+          <p>
+            We're preparing your shipping quote. You'll receive an email once
+            it's ready — usually within 24 hours.
+          </p>
+        </div>
+      )}
+
+      {/* CTA: quote ready, pay now */}
+      {isQuoteReady && !quoteExpired && (
+        <button
+          onClick={onPayNow}
+          disabled={paying}
+          className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3.5 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        >
+          {paying ? (
+            <>
+              <Spinner className="size-3.5" /> Processing…
+            </>
+          ) : (
+            <>
+              <ExternalLink size={12} /> Pay Now
+            </>
+          )}
+        </button>
+      )}
+
+      {/* CTA: quote expired */}
+      {(isQuoteExpired || quoteExpired) && (
+        <div className="space-y-3">
+          <div
+            className="flex items-start gap-3 text-sm text-muted-foreground"
+            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+          >
+            <AlertCircle
+              size={15}
+              className="text-destructive mt-0.5 shrink-0"
+            />
+            <p>
+              Your shipping quote has expired. Request a new one and we'll get
+              back to you promptly.
+            </p>
+          </div>
+          <button
+            onClick={onRequestRequote}
+            disabled={requoting}
+            className="w-full flex items-center justify-center gap-2 border border-primary text-primary py-3 text-xs tracking-[0.2em] uppercase hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-60"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {requoting ? (
+              <>
+                <Spinner className="size-3.5" /> Requesting…
+              </>
+            ) : (
+              <>
+                <RefreshCw size={12} /> Request New Quote
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

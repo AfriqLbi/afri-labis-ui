@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -7,12 +7,16 @@ import {
   ArrowLeft,
   ExternalLink,
   Clock,
+  Truck,
+  MessageCircle,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart.tsx";
 import { formatPrice } from "@/lib/products.ts";
 import { useAuth } from "@/hooks/use-auth.ts";
 import { useCurrency } from "@/components/providers/currency.tsx";
-import { formatMinorUnits } from "@/lib/currency.ts";
+import { useShippingEstimate } from "@/hooks/use-api.ts";
 import {
   orders as ordersApi,
   type ShippingAddress,
@@ -24,7 +28,7 @@ import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import PageMeta from "@/components/PageMeta.tsx";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 type Step = "contact" | "shipping" | "payment" | "confirmation";
 
@@ -41,10 +45,7 @@ type ShippingInfo = {
   state: string;
   country: string;
   zip: string;
-  method: "standard" | "express";
 };
-
-// ── Constants ──────────────────────────────────────────────────────────────────
 
 const STEPS: { id: Step; label: string }[] = [
   { id: "contact", label: "Contact" },
@@ -92,6 +93,26 @@ const NIGERIAN_STATES = [
   "Zamfara",
 ];
 
+const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2348000000000";
+
+// Map full country name → ISO alpha-2 (mirrors backend utility)
+function toIso(country: string): string {
+  const map: Record<string, string> = {
+    nigeria: "NG",
+    ghana: "GH",
+    "united kingdom": "GB",
+    canada: "CA",
+    "united states": "US",
+    "united states of america": "US",
+    usa: "US",
+    germany: "DE",
+    france: "FR",
+    australia: "AU",
+  };
+  if (country.length === 2) return country.toUpperCase();
+  return map[country.toLowerCase()] ?? country.toUpperCase();
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
@@ -103,11 +124,11 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<Step>("contact");
   const [submitting, setSubmitting] = useState(false);
 
-  // Confirmation state
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<
     string | null
   >(null);
+  const [confirmedIsQuote, setConfirmedIsQuote] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const [contact, setContact] = useState<ContactInfo>({
@@ -116,39 +137,62 @@ export default function CheckoutPage() {
     email: user?.email ?? "",
     phone: user?.phone ?? "",
   });
+
   const [shipping, setShipping] = useState<ShippingInfo>({
     address: "",
     city: "",
     state: "Lagos",
     country: "Nigeria",
     zip: "",
-    method: "standard",
   });
 
-  // Gateway selection — driven by currency
+  // ISO address for the estimate query — only set once the user moves off
+  // the shipping step so we don't spam the API on every keystroke.
+  const [estimateAddress, setEstimateAddress] = useState<{
+    country: string;
+    state: string;
+  } | null>(null);
+
   const isNgn = activeCurrency === "NGN";
   const stripeEnabled = import.meta.env.VITE_STRIPE_ENABLED === "true";
-
-  // For NGN: user chooses paystack or flutterwave
-  // For non-NGN with Stripe: only stripe
-  // For non-NGN without Stripe: only flutterwave
   const [paymentProvider, setPaymentProvider] = useState<
     "paystack" | "flutterwave" | "stripe"
   >(isNgn ? "paystack" : stripeEnabled ? "stripe" : "flutterwave");
 
-  // Keep provider in sync when currency changes
   useEffect(() => {
-    if (!isNgn) {
-      setPaymentProvider(stripeEnabled ? "stripe" : "flutterwave");
-    } else {
-      setPaymentProvider((p) => (p === "stripe" ? "paystack" : p));
-    }
+    if (!isNgn) setPaymentProvider(stripeEnabled ? "stripe" : "flutterwave");
+    else setPaymentProvider((p) => (p === "stripe" ? "paystack" : p));
   }, [isNgn, stripeEnabled]);
 
-  const shippingCost =
-    shipping.method === "express" ? 8500 : subtotal >= 50_000 ? 0 : 3500;
-  const total = subtotal + shippingCost;
+  // ── Shipping estimate ──────────────────────────────────────────────────────
+
+  const { data: shippingEst, isLoading: estLoading } =
+    useShippingEstimate(estimateAddress);
+
+  // Compute the shipping fee and UI state from the estimate
+  const shippingFeeNaira = (() => {
+    if (!shippingEst) return null;
+    if (shippingEst.status === "CALCULATED")
+      return shippingEst.fee.amount / 100;
+    if (shippingEst.status === "PICKUP") return 0;
+    return null; // QUOTE_REQUIRED or NO_ZONE
+  })();
+
+  const isQuoteZone = shippingEst?.status === "QUOTE_REQUIRED";
+  const isNoZone = shippingEst?.status === "NO_ZONE";
+
+  const total =
+    shippingFeeNaira != null ? subtotal + shippingFeeNaira : subtotal;
   const currentStepIdx = STEPS.findIndex((s) => s.id === step);
+
+  // Trigger estimate when entering the payment step
+  const handleShippingNext = useCallback(() => {
+    setEstimateAddress({
+      country: toIso(shipping.country),
+      state: shipping.state,
+    });
+    setStep("payment");
+  }, [shipping.country, shipping.state]);
 
   // ── Empty cart guard ───────────────────────────────────────────────────────
 
@@ -177,10 +221,16 @@ export default function CheckoutPage() {
     );
   }
 
-  // ── Place order (calls backend, opens payment gateway) ────────────────────
+  // ── Place order ────────────────────────────────────────────────────────────
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isNoZone) {
+      toast.error(
+        "Shipping to this destination is not configured. Please contact us via WhatsApp.",
+      );
+      return;
+    }
     setSubmitting(true);
 
     const shippingAddress: ShippingAddress = {
@@ -194,7 +244,6 @@ export default function CheckoutPage() {
     };
 
     try {
-      // Build FX snapshot from current CurrencyProvider state
       const rateEntry = rates.find((r) => r.currency === activeCurrency);
       const fxRateSnapshot =
         !isNgn && rateEntry
@@ -210,31 +259,39 @@ export default function CheckoutPage() {
         fxRateSnapshot,
       });
 
-      // result.order has the order doc; result.checkoutUrl is the gateway URL
-      const url = result.checkoutUrl ?? (result as any).data?.checkoutUrl;
-      const orderId = (result as any).order?._id ?? (result as any)._id ?? "";
-      const orderNumber =
-        (result as any).order?.orderNumber ?? (result as any).orderNumber ?? "";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = result as any;
+      const url = raw.checkoutUrl ?? raw.data?.checkoutUrl ?? null;
+      const orderId = raw.order?._id ?? raw._id ?? "";
+      const orderNumber = raw.order?.orderNumber ?? raw.orderNumber ?? "";
+      const orderStatus = raw.order?.status ?? raw.status ?? "";
+
+      const isQuote = orderStatus === "awaiting_shipping_quote";
 
       setConfirmedOrderId(orderId);
       setConfirmedOrderNumber(orderNumber);
-      setCheckoutUrl(url ?? null);
+      setConfirmedIsQuote(isQuote);
+      setCheckoutUrl(url);
       clearCart();
       setStep("confirmation");
-      toast.success("Order created! Redirecting to payment…");
 
-      // Redirect to hosted payment gateway immediately
-      if (url) {
-        setTimeout(() => {
-          window.location.href = url;
-        }, 1200);
+      if (isQuote) {
+        toast.success(
+          "Order placed! We'll email you a shipping quote within 24 hours.",
+        );
+      } else {
+        toast.success("Order created! Redirecting to payment…");
+        if (url)
+          setTimeout(() => {
+            window.location.href = url;
+          }, 1200);
       }
     } catch (err) {
-      const msg =
+      toast.error(
         err instanceof ApiError
           ? err.message
-          : "Could not create your order. Please try again.";
-      toast.error(msg);
+          : "Could not create your order. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -253,6 +310,7 @@ export default function CheckoutPage() {
             orderId={confirmedOrderId}
             orderNumber={confirmedOrderNumber}
             checkoutUrl={checkoutUrl}
+            isQuote={confirmedIsQuote}
           />
         ) : (
           <div className="max-w-7xl mx-auto px-6 py-12">
@@ -306,6 +364,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <AnimatePresence mode="wait">
+                  {/* ── Contact ── */}
                   {step === "contact" && (
                     <StepPanel key="contact">
                       <StepTitle>Contact Information</StepTitle>
@@ -374,13 +433,14 @@ export default function CheckoutPage() {
                     </StepPanel>
                   )}
 
+                  {/* ── Shipping address ── */}
                   {step === "shipping" && (
                     <StepPanel key="shipping">
                       <StepTitle>Shipping Address</StepTitle>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
-                          setStep("payment");
+                          handleShippingNext();
                         }}
                         className="space-y-5"
                       >
@@ -413,32 +473,54 @@ export default function CheckoutPage() {
                               className="checkout-input"
                             />
                           </Field>
-                          <Field label="State" required>
-                            <select
-                              required
-                              value={shipping.state}
-                              onChange={(e) =>
-                                setShipping({
-                                  ...shipping,
-                                  state: e.target.value,
-                                })
-                              }
-                              className="checkout-input"
-                            >
-                              {NIGERIAN_STATES.map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                            </select>
+                          <Field label="State / Region" required>
+                            {shipping.country.toLowerCase() === "nigeria" ? (
+                              <select
+                                required
+                                value={shipping.state}
+                                onChange={(e) =>
+                                  setShipping({
+                                    ...shipping,
+                                    state: e.target.value,
+                                  })
+                                }
+                                className="checkout-input"
+                              >
+                                {NIGERIAN_STATES.map((s) => (
+                                  <option key={s} value={s}>
+                                    {s}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                value={shipping.state}
+                                onChange={(e) =>
+                                  setShipping({
+                                    ...shipping,
+                                    state: e.target.value,
+                                  })
+                                }
+                                placeholder="Province / State"
+                                className="checkout-input"
+                              />
+                            )}
                           </Field>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <Field label="Country">
+                          <Field label="Country" required>
                             <input
-                              value="Nigeria"
-                              readOnly
-                              className="checkout-input opacity-60"
+                              required
+                              value={shipping.country}
+                              onChange={(e) =>
+                                setShipping({
+                                  ...shipping,
+                                  state: "",
+                                  country: e.target.value,
+                                })
+                              }
+                              placeholder="Nigeria"
+                              className="checkout-input"
                             />
                           </Field>
                           <Field label="Postal Code">
@@ -455,85 +537,6 @@ export default function CheckoutPage() {
                             />
                           </Field>
                         </div>
-
-                        {/* Shipping method */}
-                        <div>
-                          <p
-                            className="text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-3"
-                            style={{ fontFamily: "'Montserrat', sans-serif" }}
-                          >
-                            Shipping Method
-                          </p>
-                          <div className="space-y-3">
-                            {[
-                              {
-                                id: "standard" as const,
-                                label: "Standard Delivery",
-                                sub: "3–5 business days",
-                                price:
-                                  subtotal >= 50000
-                                    ? "Free"
-                                    : formatPrice(3500),
-                              },
-                              {
-                                id: "express" as const,
-                                label: "Express Delivery",
-                                sub: "1–2 business days",
-                                price: formatPrice(8500),
-                              },
-                            ].map((opt) => (
-                              <label
-                                key={opt.id}
-                                className={`flex items-center justify-between px-4 py-4 border cursor-pointer transition-all ${shipping.method === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`w-4 h-4 border flex items-center justify-center ${shipping.method === opt.id ? "border-primary" : "border-border"}`}
-                                  >
-                                    {shipping.method === opt.id && (
-                                      <div className="w-2 h-2 bg-primary" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p
-                                      className="text-xs text-foreground font-medium"
-                                      style={{
-                                        fontFamily: "'Montserrat', sans-serif",
-                                      }}
-                                    >
-                                      {opt.label}
-                                    </p>
-                                    <p
-                                      className="text-[10px] text-muted-foreground"
-                                      style={{
-                                        fontFamily: "'Montserrat', sans-serif",
-                                      }}
-                                    >
-                                      {opt.sub}
-                                    </p>
-                                  </div>
-                                </div>
-                                <span
-                                  className="text-sm font-semibold text-primary"
-                                  style={{
-                                    fontFamily: "'Montserrat', sans-serif",
-                                  }}
-                                >
-                                  {opt.price}
-                                </span>
-                                <input
-                                  type="radio"
-                                  className="hidden"
-                                  checked={shipping.method === opt.id}
-                                  onChange={() =>
-                                    setShipping({ ...shipping, method: opt.id })
-                                  }
-                                />
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
                         <div className="flex gap-3">
                           <BackBtn onClick={() => setStep("contact")} />
                           <NextBtn className="flex-[2]">
@@ -544,10 +547,19 @@ export default function CheckoutPage() {
                     </StepPanel>
                   )}
 
+                  {/* ── Payment ── */}
                   {step === "payment" && (
                     <StepPanel key="payment">
                       <StepTitle>Payment</StepTitle>
                       <form onSubmit={handlePlaceOrder} className="space-y-6">
+                        {/* Shipping estimate banner */}
+                        <ShippingEstimateBanner
+                          isLoading={estLoading}
+                          estimate={shippingEst ?? null}
+                          country={shipping.country}
+                          formatAmount={formatAmount}
+                        />
+
                         {/* Gateway notice */}
                         <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
                           <div className="w-2 h-2 bg-primary mt-1 shrink-0" />
@@ -555,14 +567,14 @@ export default function CheckoutPage() {
                             className="text-xs text-muted-foreground leading-relaxed"
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
                           >
-                            You will be redirected to a secure payment page to
-                            complete your purchase. Your card details never
-                            touch our servers.
+                            {isQuoteZone
+                              ? "No payment is taken now. Once we set your shipping fee, you'll receive an email with a payment link."
+                              : "You will be redirected to a secure payment page to complete your purchase."}
                           </p>
                         </div>
 
-                        {/* Price-lock banner for non-NGN orders */}
-                        {!isNgn && (
+                        {/* FX lock banner */}
+                        {!isNgn && !isQuoteZone && (
                           <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
                             <Clock
                               size={14}
@@ -582,33 +594,68 @@ export default function CheckoutPage() {
                           </div>
                         )}
 
-                        {/* Provider selection */}
-                        <Field label="Payment Provider">
-                          <div className="space-y-3">
-                            {isNgn ? (
-                              // NGN: customer chooses Paystack or Flutterwave
-                              [
-                                {
-                                  id: "paystack" as const,
-                                  label: "Paystack",
-                                  sub: "Cards, Bank Transfer, USSD",
-                                },
-                                {
-                                  id: "flutterwave" as const,
-                                  label: "Flutterwave",
-                                  sub: "Cards, Mobile Money, Bank Transfer",
-                                },
-                              ].map((opt) => (
-                                <label
-                                  key={opt.id}
-                                  className={`flex items-center gap-4 px-4 py-4 border cursor-pointer transition-all ${paymentProvider === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
-                                >
-                                  <div
-                                    className={`w-4 h-4 border flex items-center justify-center shrink-0 ${paymentProvider === opt.id ? "border-primary" : "border-border"}`}
+                        {/* Provider selection — hidden for quote orders (no payment now) */}
+                        {!isQuoteZone && (
+                          <Field label="Payment Provider">
+                            <div className="space-y-3">
+                              {isNgn ? (
+                                [
+                                  {
+                                    id: "paystack" as const,
+                                    label: "Paystack",
+                                    sub: "Cards, Bank Transfer, USSD",
+                                  },
+                                  {
+                                    id: "flutterwave" as const,
+                                    label: "Flutterwave",
+                                    sub: "Cards, Mobile Money, Bank Transfer",
+                                  },
+                                ].map((opt) => (
+                                  <label
+                                    key={opt.id}
+                                    className={`flex items-center gap-4 px-4 py-4 border cursor-pointer transition-all ${paymentProvider === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
                                   >
-                                    {paymentProvider === opt.id && (
-                                      <div className="w-2 h-2 bg-primary" />
-                                    )}
+                                    <div
+                                      className={`w-4 h-4 border flex items-center justify-center shrink-0 ${paymentProvider === opt.id ? "border-primary" : "border-border"}`}
+                                    >
+                                      {paymentProvider === opt.id && (
+                                        <div className="w-2 h-2 bg-primary" />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <p
+                                        className="text-xs font-semibold text-foreground"
+                                        style={{
+                                          fontFamily:
+                                            "'Montserrat', sans-serif",
+                                        }}
+                                      >
+                                        {opt.label}
+                                      </p>
+                                      <p
+                                        className="text-[10px] text-muted-foreground"
+                                        style={{
+                                          fontFamily:
+                                            "'Montserrat', sans-serif",
+                                        }}
+                                      >
+                                        {opt.sub}
+                                      </p>
+                                    </div>
+                                    <input
+                                      type="radio"
+                                      className="hidden"
+                                      checked={paymentProvider === opt.id}
+                                      onChange={() =>
+                                        setPaymentProvider(opt.id)
+                                      }
+                                    />
+                                  </label>
+                                ))
+                              ) : (
+                                <div className="px-4 py-4 border border-primary/30 bg-primary/5 flex items-center gap-3">
+                                  <div className="w-4 h-4 border border-primary flex items-center justify-center shrink-0">
+                                    <div className="w-2 h-2 bg-primary" />
                                   </div>
                                   <div>
                                     <p
@@ -617,7 +664,7 @@ export default function CheckoutPage() {
                                         fontFamily: "'Montserrat', sans-serif",
                                       }}
                                     >
-                                      {opt.label}
+                                      {stripeEnabled ? "Stripe" : "Flutterwave"}
                                     </p>
                                     <p
                                       className="text-[10px] text-muted-foreground"
@@ -625,53 +672,22 @@ export default function CheckoutPage() {
                                         fontFamily: "'Montserrat', sans-serif",
                                       }}
                                     >
-                                      {opt.sub}
+                                      {stripeEnabled
+                                        ? `International cards · ${activeCurrency}`
+                                        : `Multi-currency · ${activeCurrency}`}
                                     </p>
                                   </div>
-                                  <input
-                                    type="radio"
-                                    className="hidden"
-                                    checked={paymentProvider === opt.id}
-                                    onChange={() => setPaymentProvider(opt.id)}
-                                  />
-                                </label>
-                              ))
-                            ) : (
-                              // Non-NGN: gateway determined by currency
-                              <div className="px-4 py-4 border border-primary/30 bg-primary/5 flex items-center gap-3">
-                                <div className="w-4 h-4 border border-primary flex items-center justify-center shrink-0">
-                                  <div className="w-2 h-2 bg-primary" />
                                 </div>
-                                <div>
-                                  <p
-                                    className="text-xs font-semibold text-foreground"
-                                    style={{
-                                      fontFamily: "'Montserrat', sans-serif",
-                                    }}
-                                  >
-                                    {stripeEnabled ? "Stripe" : "Flutterwave"}
-                                  </p>
-                                  <p
-                                    className="text-[10px] text-muted-foreground"
-                                    style={{
-                                      fontFamily: "'Montserrat', sans-serif",
-                                    }}
-                                  >
-                                    {stripeEnabled
-                                      ? `International cards · ${activeCurrency}`
-                                      : `Multi-currency · ${activeCurrency}`}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </Field>
+                              )}
+                            </div>
+                          </Field>
+                        )}
 
                         <div className="flex gap-3 pt-2">
                           <BackBtn onClick={() => setStep("shipping")} />
                           <button
                             type="submit"
-                            disabled={submitting}
+                            disabled={submitting || isNoZone}
                             className="flex-[2] bg-primary text-primary-foreground py-4 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
                           >
@@ -679,8 +695,15 @@ export default function CheckoutPage() {
                               <>
                                 <Spinner className="size-4" /> Processing…
                               </>
+                            ) : isQuoteZone ? (
+                              <>Request Shipping Quote →</>
                             ) : (
-                              <>Pay {formatAmount(total * 100)} →</>
+                              <>
+                                {shippingFeeNaira != null
+                                  ? `Pay ${formatAmount(total * 100)}`
+                                  : "Place Order"}{" "}
+                                →
+                              </>
                             )}
                           </button>
                         </div>
@@ -695,8 +718,11 @@ export default function CheckoutPage() {
                 <OrderSummary
                   items={items}
                   subtotal={subtotal}
-                  shippingCost={shippingCost}
+                  shippingFeeNaira={shippingFeeNaira}
+                  isQuoteZone={isQuoteZone}
+                  estLoading={estLoading && step === "payment"}
                   total={total}
+                  formatAmount={formatAmount}
                 />
               </div>
             </div>
@@ -708,6 +734,158 @@ export default function CheckoutPage() {
   );
 }
 
+// ── Shipping estimate banner ────────────────────────────────────────────────────
+
+import type { ShippingEstimateResult } from "@/lib/api.ts";
+
+function ShippingEstimateBanner({
+  isLoading,
+  estimate,
+  country,
+  formatAmount,
+}: {
+  isLoading: boolean;
+  estimate: ShippingEstimateResult | null;
+  country: string;
+  formatAmount: (kobo: number) => string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 border border-border bg-muted/20">
+        <Loader2 size={14} className="animate-spin text-primary shrink-0" />
+        <p
+          className="text-xs text-muted-foreground"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        >
+          Calculating shipping…
+        </p>
+      </div>
+    );
+  }
+  if (!estimate) return null;
+
+  if (estimate.status === "NO_ZONE") {
+    const waLink = `https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER ?? "2348000000000"}?text=${encodeURIComponent(`Hi LABI, I need a shipping quote to ${country}`)}`;
+    return (
+      <div className="flex items-start gap-3 px-4 py-3 border border-destructive/40 bg-destructive/5">
+        <AlertCircle size={14} className="text-destructive mt-0.5 shrink-0" />
+        <div>
+          <p
+            className="text-xs text-foreground mb-1"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            Shipping to this destination isn't configured yet.
+          </p>
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] tracking-[0.1em] uppercase text-[#25D366] hover:underline"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            <MessageCircle size={11} /> Contact us on WhatsApp
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (estimate.status === "QUOTE_REQUIRED") {
+    const range = estimate.estimateRange;
+    return (
+      <div className="flex items-start gap-3 px-4 py-3 border border-primary/30 bg-primary/5">
+        <Truck size={14} className="text-primary mt-0.5 shrink-0" />
+        <div className="space-y-1">
+          <p
+            className="text-xs text-foreground font-medium"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            Shipping to {estimate.zone} is quoted per order
+          </p>
+          <p
+            className="text-[11px] text-muted-foreground"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {estimate.message}
+          </p>
+          {range && (
+            <p
+              className="text-[11px] text-primary"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Estimate: {formatAmount(range.minNgn)} –{" "}
+              {formatAmount(range.maxNgn)}
+            </p>
+          )}
+          {estimate.etaDays && (
+            <p
+              className="text-[11px] text-muted-foreground"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Typical delivery: {estimate.etaDays[0]}–{estimate.etaDays[1]} days
+            </p>
+          )}
+          {estimate.customerNote && (
+            <p
+              className="text-[10px] text-muted-foreground/70 italic"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {estimate.customerNote}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (estimate.status === "CALCULATED" || estimate.status === "PICKUP") {
+    return (
+      <div className="flex items-start gap-3 px-4 py-3 border border-emerald-500/30 bg-emerald-500/5">
+        <Truck size={14} className="text-emerald-400 mt-0.5 shrink-0" />
+        <div className="space-y-1">
+          <p
+            className="text-xs text-foreground font-medium"
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {estimate.status === "PICKUP"
+              ? "Pickup — Free"
+              : `Shipping to ${estimate.zone}`}
+          </p>
+          {estimate.status === "CALCULATED" && (
+            <p
+              className="text-sm text-primary font-semibold"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {estimate.fee.amount === 0
+                ? "Free"
+                : formatAmount(estimate.fee.amount)}
+            </p>
+          )}
+          {estimate.etaDays && (
+            <p
+              className="text-[11px] text-muted-foreground"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Estimated delivery: {estimate.etaDays[0]}–{estimate.etaDays[1]}{" "}
+              days
+            </p>
+          )}
+          {estimate.status === "CALCULATED" && estimate.customerNote && (
+            <p
+              className="text-[10px] text-muted-foreground/70 italic"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {estimate.customerNote}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ── Confirmation screen ────────────────────────────────────────────────────────
 
 function Confirmation({
@@ -715,12 +893,15 @@ function Confirmation({
   orderId,
   orderNumber,
   checkoutUrl,
+  isQuote,
 }: {
   contact: ContactInfo;
   orderId: string | null;
   orderNumber: string | null;
   checkoutUrl: string | null;
+  isQuote: boolean;
 }) {
+  const waLink = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi LABI, I have a question about my order ${orderNumber ?? ""}`)}`;
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -736,7 +917,7 @@ function Confirmation({
           className="text-xs tracking-[0.3em] uppercase text-primary mb-4"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
-          Order Created
+          {isQuote ? "Quote Requested" : "Order Created"}
         </p>
         <h1
           className="text-5xl font-light text-foreground mb-6"
@@ -750,17 +931,18 @@ function Confirmation({
           className="text-muted-foreground text-lg font-light leading-relaxed mb-4"
           style={{ fontFamily: "'Cormorant Garamond', serif" }}
         >
-          {checkoutUrl
-            ? "Redirecting you to the secure payment page now…"
-            : "Your order has been received and is awaiting payment confirmation."}
+          {isQuote
+            ? "We've received your order. An admin will set the shipping fee and email you a payment link — usually within 24 hours."
+            : checkoutUrl
+              ? "Redirecting you to the secure payment page now…"
+              : "Your order has been received and is awaiting payment confirmation."}
         </p>
         {contact.email && (
           <p
             className="text-xs tracking-wide text-muted-foreground mb-3"
             style={{ fontFamily: "'Montserrat', sans-serif" }}
           >
-            Confirmation to{" "}
-            <span className="text-primary">{contact.email}</span>
+            Updates to <span className="text-primary">{contact.email}</span>
           </p>
         )}
         {orderNumber && (
@@ -773,9 +955,8 @@ function Confirmation({
           </p>
         )}
         <div className="w-12 h-[1px] bg-primary mx-auto mb-8" />
-
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {checkoutUrl && (
+          {checkoutUrl && !isQuote && (
             <a
               href={checkoutUrl}
               className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
@@ -790,8 +971,19 @@ function Confirmation({
               className="inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
-              Track Order
+              {isQuote ? "View Order Status" : "Track Order"}
             </Link>
+          )}
+          {isQuote && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 border border-[#25D366] text-[#25D366] px-8 py-4 text-xs tracking-[0.2em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              <MessageCircle size={13} /> WhatsApp Us
+            </a>
           )}
           <Link
             to="/shop"
@@ -803,6 +995,137 @@ function Confirmation({
         </div>
       </div>
     </motion.div>
+  );
+}
+
+// ── Order summary ──────────────────────────────────────────────────────────────
+
+function OrderSummary({
+  items,
+  subtotal,
+  shippingFeeNaira,
+  isQuoteZone,
+  estLoading,
+  total,
+  formatAmount,
+}: {
+  items: import("@/hooks/use-cart.tsx").CartItem[];
+  subtotal: number;
+  shippingFeeNaira: number | null;
+  isQuoteZone: boolean;
+  estLoading: boolean;
+  total: number;
+  formatAmount: (kobo: number) => string;
+}) {
+  return (
+    <div className="lg:sticky lg:top-24 self-start">
+      <div className="bg-card border border-border p-6">
+        <p
+          className="text-[10px] tracking-[0.3em] uppercase text-primary mb-6 font-semibold"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        >
+          Order Summary
+        </p>
+        <div className="space-y-4 mb-6">
+          {items.map((item) => (
+            <div
+              key={`${item.product.id}-${item.size}-${item.color}`}
+              className="flex gap-3"
+            >
+              <div className="relative w-16 h-20 shrink-0 overflow-hidden">
+                <img
+                  src={item.product.images[0]}
+                  alt={item.product.name}
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {item.quantity}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-sm font-light text-foreground leading-snug"
+                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                >
+                  {item.product.name}
+                </p>
+                <p
+                  className="text-[10px] tracking-wide text-muted-foreground mt-0.5 uppercase"
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
+                >
+                  {item.color} · {item.size}
+                </p>
+                <p
+                  className="text-sm font-semibold text-primary mt-1"
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
+                >
+                  {formatAmount(item.product.price * item.quantity * 100)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border pt-4 space-y-3">
+          <div className="flex justify-between">
+            <span
+              className="text-xs tracking-wide uppercase text-muted-foreground"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Subtotal
+            </span>
+            <span
+              className="text-sm text-foreground"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {formatAmount(subtotal * 100)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span
+              className="text-xs tracking-wide uppercase text-muted-foreground"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Shipping
+            </span>
+            <span
+              className="text-sm"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {estLoading ? (
+                <Loader2
+                  size={12}
+                  className="animate-spin text-muted-foreground inline"
+                />
+              ) : isQuoteZone ? (
+                <span className="text-primary italic">Quoted after order</span>
+              ) : shippingFeeNaira === 0 ? (
+                <span className="text-emerald-400">Free</span>
+              ) : shippingFeeNaira != null ? (
+                formatAmount(shippingFeeNaira * 100)
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </span>
+          </div>
+          <div className="flex justify-between pt-3 border-t border-border">
+            <span
+              className="text-xs tracking-[0.15em] uppercase text-foreground font-semibold"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Total
+            </span>
+            <span
+              className="text-xl font-semibold text-primary"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {isQuoteZone
+                ? `${formatAmount(subtotal * 100)} + shipping`
+                : formatAmount(total * 100)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -883,114 +1206,5 @@ function BackBtn({ onClick }: { onClick: () => void }) {
     >
       Back
     </button>
-  );
-}
-
-function OrderSummary({
-  items,
-  subtotal,
-  shippingCost,
-  total,
-}: {
-  items: import("@/hooks/use-cart.tsx").CartItem[];
-  subtotal: number;
-  shippingCost: number;
-  total: number;
-}) {
-  const { formatAmount } = useCurrency();
-  return (
-    <div className="lg:sticky lg:top-24 self-start">
-      <div className="bg-card border border-border p-6">
-        <p
-          className="text-[10px] tracking-[0.3em] uppercase text-primary mb-6 font-semibold"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-          Order Summary
-        </p>
-        <div className="space-y-4 mb-6">
-          {items.map((item) => (
-            <div
-              key={`${item.product.id}-${item.size}-${item.color}`}
-              className="flex gap-3"
-            >
-              <div className="relative w-16 h-20 shrink-0 overflow-hidden">
-                <img
-                  src={item.product.images[0]}
-                  alt={item.product.name}
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                  {item.quantity}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-sm font-light text-foreground leading-snug"
-                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                >
-                  {item.product.name}
-                </p>
-                <p
-                  className="text-[10px] tracking-wide text-muted-foreground mt-0.5 uppercase"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {item.color} · {item.size}
-                </p>
-                <p
-                  className="text-sm font-semibold text-primary mt-1"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {formatAmount(item.product.price * item.quantity * 100)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-border pt-4 space-y-3">
-          <div className="flex justify-between">
-            <span
-              className="text-xs tracking-wide uppercase text-muted-foreground"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              Subtotal
-            </span>
-            <span
-              className="text-sm text-foreground"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              {formatAmount(subtotal * 100)}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span
-              className="text-xs tracking-wide uppercase text-muted-foreground"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              Shipping
-            </span>
-            <span
-              className="text-sm text-foreground"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              {shippingCost === 0 ? "Free" : formatAmount(shippingCost * 100)}
-            </span>
-          </div>
-          <div className="flex justify-between pt-3 border-t border-border">
-            <span
-              className="text-xs tracking-[0.15em] uppercase text-foreground font-semibold"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              Total
-            </span>
-            <span
-              className="text-xl font-semibold text-primary"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              {formatAmount(total * 100)}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
