@@ -683,7 +683,6 @@ export const adminMedia = {
         folder: string;
         format: string;
         quality: string;
-        transformation: string;
       };
     };
     const {
@@ -694,7 +693,6 @@ export const adminMedia = {
       folder: signedFolder,
       format,
       quality,
-      transformation,
     } = signJson.data;
 
     // Step 2: upload directly to Cloudinary.
@@ -707,7 +705,6 @@ export const adminMedia = {
     form.append("folder", signedFolder);
     form.append("format", format);
     form.append("quality", quality);
-    form.append("transformation", transformation);
 
     const uploadRes = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
