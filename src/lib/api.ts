@@ -454,13 +454,19 @@ export const catalog = {
     ).then((res) => ({ ...res, items: res.items.map(normaliseProduct) }));
   },
   async getProduct(slug: string) {
-    const raw = await request<ApiProduct>(
+    // The single-product endpoint returns { product: {...}, similar: [...] }
+    const res = await request<{ product: unknown; similar: unknown[] }>(
       "GET",
       `/catalog/products/${slug}`,
       undefined,
       { context: "none" },
     );
-    return normaliseProduct(raw);
+    return {
+      product: normaliseProduct(res.product),
+      similar: Array.isArray(res.similar)
+        ? res.similar.map(normaliseProduct)
+        : [],
+    };
   },
   listCategories(type?: "category" | "section") {
     const q = type ? `?type=${type}` : "";

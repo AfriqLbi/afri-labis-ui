@@ -14,7 +14,7 @@ import Footer from "../../_components/Footer.tsx";
 import ProductCard from "../../_components/ProductCard.tsx";
 import { useCart } from "@/hooks/use-cart.tsx";
 import { useCurrency } from "@/components/providers/currency.tsx";
-import { useProduct, useProducts } from "@/hooks/use-api.ts";
+import { useProduct } from "@/hooks/use-api.ts";
 import type { ApiProduct } from "@/lib/api.ts";
 import { toast } from "sonner";
 import { ProductDetailSkeleton } from "@/components/ui/skeleton.tsx";
@@ -55,8 +55,10 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
 
   // id is the product slug (e.g. "labi-adunola-warped-dress")
-  // All product links are generated with the slug via toLocalProduct(p.slug || p._id)
-  const { data: product, isLoading, isError } = useProduct(id ?? "");
+  // getProduct returns { product, similar } — both already normalised
+  const { data, isLoading, isError } = useProduct(id ?? "");
+  const product = data?.product;
+  const apiSimilar = data?.similar ?? [];
 
   if (isLoading) {
     return (
@@ -123,14 +125,20 @@ export default function ProductDetailPage() {
       />
       <Header />
       <div className="pt-[65px]">
-        <ProductDetail product={product} />
+        <ProductDetail product={product} similar={apiSimilar} />
       </div>
       <Footer />
     </div>
   );
 }
 
-function ProductDetail({ product }: { product: ApiProduct }) {
+function ProductDetail({
+  product,
+  similar,
+}: {
+  product: ApiProduct;
+  similar: ApiProduct[];
+}) {
   const local = toLocalProduct(product);
 
   const [selectedImg, setSelectedImg] = useState(0);
@@ -143,14 +151,8 @@ function ProductDetail({ product }: { product: ApiProduct }) {
   const { addItem } = useCart();
   const { formatAmount, activeCurrency } = useCurrency();
 
-  // Fetch related products from the same category
-  const { data: relatedData } = useProducts({
-    categorySlug: product.categorySlug,
-    limit: 5,
-  });
-  const related = (relatedData?.items ?? [])
-    .filter((p) => p._id !== product._id)
-    .slice(0, 4);
+  // Use similar products from the API response (already fetched with the product)
+  const related = similar.filter((p) => p._id !== product._id).slice(0, 4);
 
   const inStock = product.stock - product.reserved > 0;
 
