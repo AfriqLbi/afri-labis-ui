@@ -681,20 +681,33 @@ export const adminMedia = {
         timestamp: number;
         signature: string;
         folder: string;
+        format: string;
+        quality: string;
+        transformation: string;
       };
     };
-    const { apiKey, cloudName, timestamp, signature } = signJson.data;
+    const {
+      apiKey,
+      cloudName,
+      timestamp,
+      signature,
+      folder: signedFolder,
+      format,
+      quality,
+      transformation,
+    } = signJson.data;
 
-    // Step 2: upload directly to Cloudinary
+    // Step 2: upload directly to Cloudinary.
+    // IMPORTANT: send exactly the fields that were signed — nothing more, nothing less.
     const form = new FormData();
     form.append("file", file);
     form.append("api_key", apiKey);
     form.append("timestamp", String(timestamp));
     form.append("signature", signature);
-    form.append("folder", folder);
-    form.append("format", "auto");
-    form.append("quality", "auto");
-    form.append("transformation", "w_1200,c_limit");
+    form.append("folder", signedFolder);
+    form.append("format", format);
+    form.append("quality", quality);
+    form.append("transformation", transformation);
 
     const uploadRes = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
