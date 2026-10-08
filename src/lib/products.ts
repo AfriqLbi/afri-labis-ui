@@ -1,5 +1,6 @@
 export type Product = {
-  id: string;
+  id: string; // slug (used for routing)
+  _id?: string; // MongoDB ObjectId (used for backend API calls)
   name: string;
   price: number;
   originalPrice?: number;

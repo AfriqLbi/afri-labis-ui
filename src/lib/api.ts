@@ -506,45 +506,108 @@ export const catalog = {
 
 // ── Cart ───────────────────────────────────────────────────────────────────────
 
+/** Returns (or creates) a stable guest session ID stored in localStorage. */
+export function getOrCreateGuestId(): string {
+  try {
+    const existing = localStorage.getItem("labi_guest_id");
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem("labi_guest_id", id);
+    return id;
+  } catch {
+    return "guest-fallback";
+  }
+}
+
+export type ServerCartLine = {
+  productId: string;
+  sku: string;
+  title: string;
+  image: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type ServerCart = {
+  id: string;
+  lines: ServerCartLine[];
+  count: number;
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  promoCode: string | null;
+};
+
+function cartRequest<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const guestId = getOrCreateGuestId();
+  return request<T>(method, path, body, { context: "customer" });
+
+  // Note: X-Guest-Id is injected via a separate fetch wrapper below so it
+  // reaches the server without interfering with the cookie-auth flow.
+  void guestId; // referenced below in cartFetch
+}
+
+/** Fetch wrapper that always adds X-Guest-Id for cart endpoints. */
+async function cartFetch<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const guestId = getOrCreateGuestId();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Guest-Id": guestId,
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  let json: { success: boolean; data?: T; message?: string } | null = null;
+  try {
+    json = await res.json();
+  } catch {
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+  }
+  if (!res.ok || json?.success === false) {
+    throw new ApiError(
+      res.status,
+      (json?.message as string) ?? res.statusText,
+      json,
+    );
+  }
+  return (json?.data ?? json) as T;
+
+  void cartRequest; // suppress unused warning
+}
+
 export const cart = {
-  get() {
-    return request<{
-      _id: string;
-      userId: string | null;
-      guestId: string | null;
-      lines: {
-        productId: string;
-        sku: string;
-        title: string;
-        image: string;
-        unitPrice: number;
-        quantity: number;
-      }[];
-      promoCode: string | null;
-      discountAmount: number | null;
-    }>("GET", "/cart");
+  get(): Promise<ServerCart> {
+    return cartFetch<ServerCart>("GET", "/cart");
   },
-  addLine(dto: {
+  addLine(dto: { productId: string; quantity: number }): Promise<ServerCart> {
+    return cartFetch<ServerCart>("POST", "/cart/lines", dto);
+  },
+  updateLine(dto: {
     productId: string;
-    sku: string;
-    title: string;
-    image: string;
-    unitPrice: number;
     quantity: number;
-  }) {
-    return request<unknown>("POST", "/cart/lines", dto);
+  }): Promise<ServerCart> {
+    return cartFetch<ServerCart>("PATCH", "/cart/lines", dto);
   },
-  updateLine(dto: { productId: string; quantity: number }) {
-    return request<unknown>("PATCH", "/cart/lines", dto);
+  removeLine(productId: string): Promise<ServerCart> {
+    return cartFetch<ServerCart>("DELETE", `/cart/lines/${productId}`);
   },
-  removeLine(productId: string) {
-    return request<unknown>("DELETE", `/cart/lines/${productId}`);
+  clear(): Promise<ServerCart> {
+    return cartFetch<ServerCart>("DELETE", "/cart");
   },
-  clear() {
-    return request<unknown>("DELETE", "/cart");
-  },
-  merge() {
-    return request<unknown>("POST", "/cart/merge");
+  mergeGuest(guestId: string): Promise<ServerCart> {
+    return request<ServerCart>("POST", "/cart/merge", { guestId });
   },
 };
 

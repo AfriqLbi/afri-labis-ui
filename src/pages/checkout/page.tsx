@@ -116,7 +116,13 @@ function toIso(country: string): string {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
+  const {
+    items,
+    subtotal,
+    clearCart,
+    serverCart,
+    isLoading: cartLoading,
+  } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { activeCurrency, rates, fxBuffer, formatAmount } = useCurrency();
@@ -196,7 +202,7 @@ export default function CheckoutPage() {
 
   // ── Empty cart guard ───────────────────────────────────────────────────────
 
-  if (items.length === 0 && step !== "confirmation") {
+  if (!cartLoading && items.length === 0 && step !== "confirmation") {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -251,6 +257,7 @@ export default function CheckoutPage() {
           : undefined;
 
       const result = await ordersApi.create({
+        cartId: serverCart?.id,
         customerEmail: contact.email,
         customerName: `${contact.firstName} ${contact.lastName}`.trim(),
         paymentProvider,
@@ -716,7 +723,7 @@ export default function CheckoutPage() {
               {/* Right — order summary */}
               <div className="order-first md:order-last">
                 <OrderSummary
-                  items={items}
+                  lines={serverCart?.lines ?? []}
                   subtotal={subtotal}
                   shippingFeeNaira={shippingFeeNaira}
                   isQuoteZone={isQuoteZone}
@@ -1000,8 +1007,10 @@ function Confirmation({
 
 // ── Order summary ──────────────────────────────────────────────────────────────
 
+import type { ServerCartLine } from "@/lib/api.ts";
+
 function OrderSummary({
-  items,
+  lines,
   subtotal,
   shippingFeeNaira,
   isQuoteZone,
@@ -1009,7 +1018,7 @@ function OrderSummary({
   total,
   formatAmount,
 }: {
-  items: import("@/hooks/use-cart.tsx").CartItem[];
+  lines: ServerCartLine[];
   subtotal: number;
   shippingFeeNaira: number | null;
   isQuoteZone: boolean;
@@ -1027,19 +1036,18 @@ function OrderSummary({
           Order Summary
         </p>
         <div className="space-y-4 mb-6">
-          {items.map((item) => (
-            <div
-              key={`${item.product.id}-${item.size}-${item.color}`}
-              className="flex gap-3"
-            >
-              <div className="relative w-16 h-20 shrink-0 overflow-hidden">
-                <img
-                  src={item.product.images[0]}
-                  alt={item.product.name}
-                  className="w-full h-full object-cover"
-                />
+          {lines.map((line) => (
+            <div key={line.productId} className="flex gap-3">
+              <div className="relative w-16 h-20 shrink-0 overflow-hidden bg-muted">
+                {line.image && (
+                  <img
+                    src={line.image}
+                    alt={line.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                  {item.quantity}
+                  {line.quantity}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
@@ -1047,19 +1055,13 @@ function OrderSummary({
                   className="text-sm font-light text-foreground leading-snug"
                   style={{ fontFamily: "'Cormorant Garamond', serif" }}
                 >
-                  {item.product.name}
-                </p>
-                <p
-                  className="text-[10px] tracking-wide text-muted-foreground mt-0.5 uppercase"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {item.color} · {item.size}
+                  {line.title}
                 </p>
                 <p
                   className="text-sm font-semibold text-primary mt-1"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
-                  {formatAmount(item.product.price * item.quantity * 100)}
+                  {formatAmount(line.unitPrice * line.quantity * 100)}
                 </p>
               </div>
             </div>

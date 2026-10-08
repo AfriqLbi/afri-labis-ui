@@ -3,11 +3,14 @@ import { X, Minus, Plus, ShoppingBag, ArrowRight, Truck } from "lucide-react";
 import { useCart } from "@/hooks/use-cart.tsx";
 import { Link } from "react-router-dom";
 import { useCurrency } from "@/components/providers/currency.tsx";
+import { Spinner } from "@/components/ui/spinner.tsx";
 
 export default function CartDrawer() {
   const {
     items,
+    serverCart,
     isOpen,
+    isLoading,
     closeCart,
     removeItem,
     updateQuantity,
@@ -65,7 +68,11 @@ export default function CartDrawer() {
 
             {/* Items */}
             <div className="flex-1 overflow-y-auto py-6 px-6">
-              {items.length === 0 ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Spinner className="size-6 text-primary" />
+                </div>
+              ) : items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
                   <ShoppingBag size={40} className="text-muted-foreground/40" />
                   <p
@@ -85,19 +92,12 @@ export default function CartDrawer() {
               ) : (
                 <div className="space-y-6">
                   {items.map((item) => (
-                    <CartItem
-                      key={`${item.product.id}-${item.size}-${item.color}`}
+                    <CartItemRow
+                      key={item.product.id}
                       item={item}
-                      onRemove={() =>
-                        removeItem(item.product.id, item.size, item.color)
-                      }
+                      onRemove={() => removeItem(item.product.id)}
                       onUpdateQty={(qty) =>
-                        updateQuantity(
-                          item.product.id,
-                          item.size,
-                          item.color,
-                          qty,
-                        )
+                        updateQuantity(item.product.id, qty)
                       }
                     />
                   ))}
@@ -108,6 +108,27 @@ export default function CartDrawer() {
             {/* Footer */}
             {items.length > 0 && (
               <div className="border-t border-border px-6 py-6 shrink-0 space-y-4">
+                {/* Discount */}
+                {(serverCart?.discountAmount ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span
+                      className="text-xs tracking-wide text-muted-foreground uppercase"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      Discount
+                      {serverCart?.promoCode
+                        ? ` (${serverCart.promoCode})`
+                        : ""}
+                    </span>
+                    <span
+                      className="text-sm text-primary"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      −{formatAmount((serverCart?.discountAmount ?? 0) * 100)}
+                    </span>
+                  </div>
+                )}
+
                 {/* Totals */}
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -125,7 +146,7 @@ export default function CartDrawer() {
                     </span>
                   </div>
 
-                  {/* Shipping — calculated at checkout based on address + zone */}
+                  {/* Shipping — requires an address to calculate */}
                   <div className="flex justify-between items-center">
                     <span
                       className="text-xs tracking-wide text-muted-foreground uppercase"
@@ -182,28 +203,27 @@ export default function CartDrawer() {
   );
 }
 
-type CartItemProps = {
+// ── CartItemRow ───────────────────────────────────────────────────────────────
+
+type CartItemRowProps = {
   item: import("@/hooks/use-cart.tsx").CartItem;
   onRemove: () => void;
   onUpdateQty: (qty: number) => void;
 };
 
-function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
+function CartItemRow({ item, onRemove, onUpdateQty }: CartItemRowProps) {
   const { formatAmount } = useCurrency();
-
-  // Cap quantity at the product's available stock (falls back to a high cap
-  // for static/mock products that don't carry stock info).
-  const maxQty = item.product.availableStock ?? 99;
-  const canIncrease = item.quantity < maxQty;
 
   return (
     <div className="flex gap-4">
-      <div className="w-20 h-24 shrink-0 overflow-hidden">
-        <img
-          src={item.product.images[0]}
-          alt={item.product.name}
-          className="w-full h-full object-cover"
-        />
+      <div className="w-20 h-24 shrink-0 overflow-hidden bg-muted">
+        {item.product.images[0] && (
+          <img
+            src={item.product.images[0]}
+            alt={item.product.name}
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
@@ -221,22 +241,6 @@ function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
             <X size={13} />
           </button>
         </div>
-        <p
-          className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground mt-1"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-          {item.color} · {item.size}
-        </p>
-
-        {/* Stock warning when at the limit */}
-        {item.quantity >= maxQty && maxQty < 99 && (
-          <p
-            className="text-[10px] text-amber-500 mt-1"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Only {maxQty} in stock
-          </p>
-        )}
 
         <div className="flex items-center justify-between mt-3">
           {/* Qty control */}
@@ -255,17 +259,9 @@ function CartItem({ item, onRemove, onUpdateQty }: CartItemProps) {
               {item.quantity}
             </span>
             <button
-              onClick={() =>
-                canIncrease ? onUpdateQty(item.quantity + 1) : undefined
-              }
-              disabled={!canIncrease}
-              className={`w-7 h-7 flex items-center justify-center transition-colors ${
-                canIncrease
-                  ? "text-muted-foreground hover:text-foreground cursor-pointer"
-                  : "text-muted-foreground/30 cursor-not-allowed"
-              }`}
+              onClick={() => onUpdateQty(item.quantity + 1)}
+              className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               aria-label="Increase quantity"
-              title={!canIncrease ? `Maximum stock: ${maxQty}` : undefined}
             >
               <Plus size={11} />
             </button>

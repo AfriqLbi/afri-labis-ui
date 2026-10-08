@@ -25,6 +25,7 @@ import PageMeta from "@/components/PageMeta.tsx";
 function toLocalProduct(p: ApiProduct) {
   return {
     id: p.slug || p._id, // use slug for URL routing — API accepts slugs
+    _id: p._id, // ObjectId for backend API calls (order creation)
     name: p.title,
     price: p.price,
     originalPrice: p.compareAtPrice ?? undefined,
@@ -166,7 +167,8 @@ function ProductDetail({
       toast.error("Please select a size");
       return;
     }
-    addItem(local, selectedSize ?? local.sizes[0], selectedColor);
+    // Pass the product's MongoDB _id so the server cart can look it up
+    void addItem(product._id, 1);
     toast.success(`${local.name} added to cart`);
   };
 

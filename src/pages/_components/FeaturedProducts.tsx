@@ -9,6 +9,7 @@ import ProductCard from "./ProductCard.tsx";
 function apiToProduct(p: ApiProduct): Product {
   return {
     id: p.slug || p._id,
+    _id: p._id, // ObjectId needed for checkout inline-items
     name: p.title,
     // normaliseProduct already gives full NGN naira — no division needed
     price: p.price,
