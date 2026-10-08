@@ -7,6 +7,7 @@
  *   3. Settings       — SLA hours, default validity, alert emails
  */
 import { useState } from "react";
+import * as React from "react";
 import {
   Plus,
   Pencil,
@@ -431,6 +432,47 @@ function ZoneEditor({
   const set = <K extends keyof ApiShippingZone>(k: K, v: ApiShippingZone[K]) =>
     onChange({ ...zone, [k]: v });
 
+  // ── Local draft strings for comma-separated fields ───────────────────────
+  // We keep the raw text the user is typing separately from the parsed array.
+  // The array is only updated on blur so typing "NG, CA" works without the
+  // trailing comma being stripped on every keystroke.
+  const [countriesDraft, setCountriesDraft] = React.useState(
+    (zone.countries ?? []).join(", "),
+  );
+  const [statesDraft, setStatesDraft] = React.useState(
+    (zone.states ?? []).join(", "),
+  );
+
+  // Keep drafts in sync when the parent zone changes (e.g. edit opens)
+  const prevZoneId = React.useRef(zone._id ?? "__new__");
+  React.useEffect(() => {
+    const id = zone._id ?? "__new__";
+    if (id !== prevZoneId.current) {
+      setCountriesDraft((zone.countries ?? []).join(", "));
+      setStatesDraft((zone.states ?? []).join(", "));
+      prevZoneId.current = id;
+    }
+  }, [zone._id, zone.countries, zone.states]);
+
+  const commitCountries = () =>
+    set(
+      "countries",
+      countriesDraft
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean),
+    );
+
+  const commitStates = () =>
+    set(
+      "states",
+      statesDraft
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+
+  // ── Rate band helpers ────────────────────────────────────────────────────
   const addBand = () =>
     set("rates", [
       ...(zone.rates ?? []),
@@ -492,44 +534,51 @@ function ZoneEditor({
               <option value="fixed">Fixed rate card</option>
             </select>
           </EF>
+
+          {/* Countries — draft string, parsed on blur */}
           <EF
             label="Countries (ISO codes, comma-separated)"
-            hint="e.g. NG  or  NG,CA"
+            hint="e.g. NG  or  NG, CA"
           >
             <input
-              value={(zone.countries ?? []).join(", ")}
-              onChange={(e) =>
-                set(
-                  "countries",
-                  e.target.value
-                    .split(",")
-                    .map((s) => s.trim().toUpperCase())
-                    .filter(Boolean),
-                )
-              }
+              value={countriesDraft}
+              onChange={(e) => setCountriesDraft(e.target.value)}
+              onBlur={commitCountries}
               className="checkout-input"
               placeholder="NG"
             />
+            {zone.countries?.length > 0 && (
+              <p
+                className="text-[10px] text-primary mt-1"
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                Saved: {zone.countries.join(", ")}
+              </p>
+            )}
           </EF>
+
+          {/* States — draft string, parsed on blur */}
           <EF
             label="States (comma-separated, optional)"
             hint="leave blank = whole country"
           >
             <input
-              value={(zone.states ?? []).join(", ")}
-              onChange={(e) =>
-                set(
-                  "states",
-                  e.target.value
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                )
-              }
+              value={statesDraft}
+              onChange={(e) => setStatesDraft(e.target.value)}
+              onBlur={commitStates}
               className="checkout-input"
               placeholder="Lagos"
             />
+            {zone.states?.length > 0 && (
+              <p
+                className="text-[10px] text-primary mt-1"
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                Saved: {zone.states.join(", ")}
+              </p>
+            )}
           </EF>
+
           <EF label="Priority" hint="higher number wins when zones overlap">
             <input
               type="number"
@@ -702,6 +751,7 @@ function ZoneEditor({
           hint="optional — shown to customers at checkout"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Min — fix: when clearing, preserve the existing maxNgn */}
             <EF label="Min estimate (NGN kobo)">
               <input
                 type="number"
@@ -712,25 +762,30 @@ function ZoneEditor({
                     e.target.value === ""
                       ? undefined
                       : parseInt(e.target.value);
-                  set(
-                    "estimateRange",
-                    v != null
-                      ? { minNgn: v, maxNgn: zone.estimateRange?.maxNgn ?? 0 }
-                      : undefined,
-                  );
+                  const currentMax = zone.estimateRange?.maxNgn;
+                  if (v == null && currentMax == null) {
+                    set("estimateRange", undefined);
+                  } else {
+                    set("estimateRange", {
+                      minNgn: v ?? 0,
+                      maxNgn: currentMax ?? 0,
+                    });
+                  }
                 }}
                 className="checkout-input"
                 placeholder="e.g. 4500000"
               />
-              {zone.estimateRange?.minNgn ? (
+              {(zone.estimateRange?.minNgn ?? 0) > 0 && (
                 <p
                   className="text-[10px] text-primary mt-1"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
-                  = {formatPrice(zone.estimateRange.minNgn / 100)}
+                  = {formatPrice(zone.estimateRange!.minNgn / 100)}
                 </p>
-              ) : null}
+              )}
             </EF>
+
+            {/* Max — fix: when clearing, preserve the existing minNgn */}
             <EF label="Max estimate (NGN kobo)">
               <input
                 type="number"
@@ -741,24 +796,27 @@ function ZoneEditor({
                     e.target.value === ""
                       ? undefined
                       : parseInt(e.target.value);
-                  set(
-                    "estimateRange",
-                    v != null
-                      ? { minNgn: zone.estimateRange?.minNgn ?? 0, maxNgn: v }
-                      : undefined,
-                  );
+                  const currentMin = zone.estimateRange?.minNgn;
+                  if (v == null && currentMin == null) {
+                    set("estimateRange", undefined);
+                  } else {
+                    set("estimateRange", {
+                      minNgn: currentMin ?? 0,
+                      maxNgn: v ?? 0,
+                    });
+                  }
                 }}
                 className="checkout-input"
                 placeholder="e.g. 9000000"
               />
-              {zone.estimateRange?.maxNgn ? (
+              {(zone.estimateRange?.maxNgn ?? 0) > 0 && (
                 <p
                   className="text-[10px] text-primary mt-1"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
-                  = {formatPrice(zone.estimateRange.maxNgn / 100)}
+                  = {formatPrice(zone.estimateRange!.maxNgn / 100)}
                 </p>
-              ) : null}
+              )}
             </EF>
           </div>
         </Section>
