@@ -3,38 +3,214 @@ import { X, Ruler } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 type SizeUnit = "cm" | "inches";
+type SizeChart = "women" | "men" | "children" | "accessories";
 
 type SizeRow = {
   size: string;
-  bust: [number, number]; // cm, inches
+  bust: [number, number];
   waist: [number, number];
   hips: [number, number];
-  length?: [number, number]; // garment length
+  length?: [number, number];
 };
 
 const WOMEN_SIZES: SizeRow[] = [
-  { size: "XS", bust: [76, 30], waist: [61, 24], hips: [84, 33], length: [120, 47] },
-  { size: "S",  bust: [81, 32], waist: [66, 26], hips: [89, 35], length: [122, 48] },
-  { size: "M",  bust: [86, 34], waist: [71, 28], hips: [94, 37], length: [124, 49] },
-  { size: "L",  bust: [91, 36], waist: [76, 30], hips: [99, 39], length: [126, 50] },
-  { size: "XL", bust: [97, 38], waist: [81, 32], hips: [104, 41], length: [128, 50] },
-  { size: "XXL", bust: [102, 40], waist: [86, 34], hips: [109, 43], length: [130, 51] },
+  {
+    size: "XS",
+    bust: [76, 30],
+    waist: [61, 24],
+    hips: [84, 33],
+    length: [120, 47],
+  },
+  {
+    size: "S",
+    bust: [81, 32],
+    waist: [66, 26],
+    hips: [89, 35],
+    length: [122, 48],
+  },
+  {
+    size: "M",
+    bust: [86, 34],
+    waist: [71, 28],
+    hips: [94, 37],
+    length: [124, 49],
+  },
+  {
+    size: "L",
+    bust: [91, 36],
+    waist: [76, 30],
+    hips: [99, 39],
+    length: [126, 50],
+  },
+  {
+    size: "XL",
+    bust: [97, 38],
+    waist: [81, 32],
+    hips: [104, 41],
+    length: [128, 50],
+  },
+  {
+    size: "XXL",
+    bust: [102, 40],
+    waist: [86, 34],
+    hips: [109, 43],
+    length: [130, 51],
+  },
 ];
 
 const MEN_SIZES: SizeRow[] = [
-  { size: "XS", bust: [86, 34],  waist: [71, 28],  hips: [86, 34],  length: [100, 39] },
-  { size: "S",  bust: [91, 36],  waist: [76, 30],  hips: [91, 36],  length: [103, 40] },
-  { size: "M",  bust: [97, 38],  waist: [81, 32],  hips: [97, 38],  length: [106, 42] },
-  { size: "L",  bust: [102, 40], waist: [86, 34],  hips: [102, 40], length: [109, 43] },
-  { size: "XL", bust: [107, 42], waist: [91, 36],  hips: [107, 42], length: [112, 44] },
-  { size: "XXL", bust: [112, 44], waist: [97, 38], hips: [112, 44], length: [115, 45] },
+  {
+    size: "XS",
+    bust: [86, 34],
+    waist: [71, 28],
+    hips: [86, 34],
+    length: [100, 39],
+  },
+  {
+    size: "S",
+    bust: [91, 36],
+    waist: [76, 30],
+    hips: [91, 36],
+    length: [103, 40],
+  },
+  {
+    size: "M",
+    bust: [97, 38],
+    waist: [81, 32],
+    hips: [97, 38],
+    length: [106, 42],
+  },
+  {
+    size: "L",
+    bust: [102, 40],
+    waist: [86, 34],
+    hips: [102, 40],
+    length: [109, 43],
+  },
+  {
+    size: "XL",
+    bust: [107, 42],
+    waist: [91, 36],
+    hips: [107, 42],
+    length: [112, 44],
+  },
+  {
+    size: "XXL",
+    bust: [112, 44],
+    waist: [97, 38],
+    hips: [112, 44],
+    length: [115, 45],
+  },
+];
+
+const CHILDREN_SIZES: SizeRow[] = [
+  {
+    size: "2–3Y",
+    bust: [54, 21],
+    waist: [51, 20],
+    hips: [57, 22],
+    length: [62, 24],
+  },
+  {
+    size: "4–5Y",
+    bust: [58, 23],
+    waist: [54, 21],
+    hips: [61, 24],
+    length: [70, 28],
+  },
+  {
+    size: "6–7Y",
+    bust: [63, 25],
+    waist: [57, 22],
+    hips: [66, 26],
+    length: [78, 31],
+  },
+  {
+    size: "8–9Y",
+    bust: [68, 27],
+    waist: [61, 24],
+    hips: [71, 28],
+    length: [86, 34],
+  },
+  {
+    size: "10–11Y",
+    bust: [74, 29],
+    waist: [65, 26],
+    hips: [77, 30],
+    length: [94, 37],
+  },
+  {
+    size: "12–13Y",
+    bust: [80, 31],
+    waist: [68, 27],
+    hips: [83, 33],
+    length: [102, 40],
+  },
 ];
 
 const ACCESSORIES_SIZES: SizeRow[] = [
-  { size: "XS/S",  bust: [76, 30], waist: [61, 24], hips: [84, 33] },
-  { size: "M/L",   bust: [89, 35], waist: [74, 29], hips: [97, 38] },
+  { size: "XS/S", bust: [76, 30], waist: [61, 24], hips: [84, 33] },
+  { size: "M/L", bust: [89, 35], waist: [74, 29], hips: [97, 38] },
   { size: "XL/XXL", bust: [102, 40], waist: [86, 34], hips: [109, 43] },
 ];
+
+const CHART_DATA: Record<SizeChart, SizeRow[]> = {
+  women: WOMEN_SIZES,
+  men: MEN_SIZES,
+  children: CHILDREN_SIZES,
+  accessories: ACCESSORIES_SIZES,
+};
+
+const CHART_LABEL: Record<SizeChart, string> = {
+  women: "Women",
+  men: "Men",
+  children: "Children",
+  accessories: "Accessories",
+};
+
+// ── Slug → chart mapping ───────────────────────────────────────────────────────
+// Maps every Labi category slug to the appropriate size chart.
+// Garment-type slugs that are primarily menswear map to "men".
+// Women-specific garments map to "women".  Children maps to "children".
+// Accessories and fabrics map to "accessories".
+// Any unknown slug defaults to "women".
+
+const MEN_SLUGS = new Set([
+  "men",
+  "cargo-pants",
+  "office-pants",
+  "straight-pants",
+  "danshiki",
+  "ayinde-aso-oke-padded-jacket",
+  "aso-oke-jacket",
+  "aso-oke-trench-coat",
+  "aso-oke-hoodie-both-side",
+  "aso-oke-padded-jacket-double-side",
+]);
+
+const WOMEN_SLUGS = new Set([
+  "women",
+  "crop-top-jacket-ladies",
+  "aso-oke-gown",
+]);
+
+const CHILDREN_SLUGS = new Set(["children"]);
+
+const ACCESSORIES_SLUGS = new Set([
+  "accessories",
+  "aso-oke-material",
+  "bridal",
+  "aso-ebi",
+  "new-arrivals",
+]);
+
+function slugToChart(slug: string): SizeChart {
+  if (MEN_SLUGS.has(slug)) return "men";
+  if (WOMEN_SLUGS.has(slug)) return "women";
+  if (CHILDREN_SLUGS.has(slug)) return "children";
+  if (ACCESSORIES_SLUGS.has(slug)) return "accessories";
+  return "women"; // safe default
+}
 
 const HOW_TO_MEASURE = [
   {
@@ -47,7 +223,7 @@ const HOW_TO_MEASURE = [
   },
   {
     label: "Hips",
-    desc: "Measure around the fullest part of your hips, about 20cm below your waist.",
+    desc: "Measure around the fullest part of your hips, about 20 cm below your waist.",
   },
   {
     label: "Garment Length",
@@ -55,22 +231,29 @@ const HOW_TO_MEASURE = [
   },
 ];
 
+// ── Props ─────────────────────────────────────────────────────────────────────
+// `category` accepts either the old "women" | "men" | "accessories" values OR
+// any Labi category slug (e.g. "cargo-pants", "aso-oke-gown").  The component
+// resolves the correct chart internally.
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  category?: "women" | "men" | "accessories";
+  /** Labi category slug OR legacy chart name */
+  category?: string;
 };
 
-export default function SizeGuideModal({ open, onClose, category = "women" }: Props) {
+export default function SizeGuideModal({
+  open,
+  onClose,
+  category = "women",
+}: Props) {
   const [unit, setUnit] = useState<SizeUnit>("cm");
   const [tab, setTab] = useState<"chart" | "how-to">("chart");
 
-  const rows =
-    category === "men"
-      ? MEN_SIZES
-      : category === "accessories"
-      ? ACCESSORIES_SIZES
-      : WOMEN_SIZES;
+  const chart = slugToChart(category);
+  const rows = CHART_DATA[chart];
+  const hasLength = rows.some((r) => r.length != null);
 
   const col = (val: [number, number]) => (unit === "cm" ? val[0] : val[1]);
 
@@ -78,7 +261,6 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -88,7 +270,6 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
             onClick={onClose}
           />
 
-          {/* Panel */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -110,7 +291,7 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
                   >
                     Size Guide
                     <span className="ml-2 text-muted-foreground font-normal capitalize">
-                      — {category}
+                      — {CHART_LABEL[chart]}
                     </span>
                   </p>
                 </div>
@@ -169,10 +350,19 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
 
                     {/* Table */}
                     <div className="overflow-x-auto">
-                      <table className="w-full text-xs" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      <table
+                        className="w-full text-xs"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
                         <thead>
                           <tr className="border-b border-border">
-                            {["Size", "Bust", "Waist", "Hips", ...(rows[0].length ? ["Length"] : [])].map((h) => (
+                            {[
+                              "Size",
+                              "Bust / Chest",
+                              "Waist",
+                              "Hips",
+                              ...(hasLength ? ["Length"] : []),
+                            ].map((h) => (
                               <th
                                 key={h}
                                 className="py-3 px-4 text-left text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-normal"
@@ -195,12 +385,27 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
                                 i % 2 === 0 ? "bg-muted/20" : ""
                               }`}
                             >
-                              <td className="py-3 px-4 font-semibold text-primary">{row.size}</td>
-                              <td className="py-3 px-4 text-foreground">{col(row.bust)}</td>
-                              <td className="py-3 px-4 text-foreground">{col(row.waist)}</td>
-                              <td className="py-3 px-4 text-foreground">{col(row.hips)}</td>
-                              {row.length && (
-                                <td className="py-3 px-4 text-foreground">{col(row.length)}</td>
+                              <td className="py-3 px-4 font-semibold text-primary">
+                                {row.size}
+                              </td>
+                              <td className="py-3 px-4 text-foreground">
+                                {col(row.bust)}
+                              </td>
+                              <td className="py-3 px-4 text-foreground">
+                                {col(row.waist)}
+                              </td>
+                              <td className="py-3 px-4 text-foreground">
+                                {col(row.hips)}
+                              </td>
+                              {hasLength && row.length && (
+                                <td className="py-3 px-4 text-foreground">
+                                  {col(row.length)}
+                                </td>
+                              )}
+                              {hasLength && !row.length && (
+                                <td className="py-3 px-4 text-muted-foreground">
+                                  —
+                                </td>
                               )}
                             </tr>
                           ))}
@@ -212,8 +417,9 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
                       className="text-[10px] text-muted-foreground mt-4 leading-relaxed"
                       style={{ fontFamily: "'Montserrat', sans-serif" }}
                     >
-                      All measurements are body measurements, not garment measurements. If
-                      you are between sizes, we recommend sizing up. For a custom fit,{" "}
+                      All measurements are body measurements, not garment
+                      measurements. If you are between sizes, we recommend
+                      sizing up. For a custom fit,{" "}
                       <a
                         href="/custom-order"
                         className="text-primary underline underline-offset-2"
@@ -231,14 +437,17 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
                       className="text-base font-light text-muted-foreground leading-relaxed"
                       style={{ fontFamily: "'Cormorant Garamond', serif" }}
                     >
-                      For the most accurate fit, use a flexible tape measure and take
-                      measurements over close-fitting clothing or underwear. Have a
-                      friend help if possible.
+                      For the most accurate fit, use a flexible tape measure and
+                      take measurements over close-fitting clothing or
+                      underwear. Have a friend help if possible.
                     </p>
                     <div className="space-y-4">
                       {HOW_TO_MEASURE.map((item, i) => (
                         <div key={item.label} className="flex gap-4">
-                          <div className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 text-[10px] font-bold text-primary" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                          <div
+                            className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 text-[10px] font-bold text-primary"
+                            style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          >
                             {i + 1}
                           </div>
                           <div>
@@ -250,7 +459,9 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
                             </p>
                             <p
                               className="text-sm text-muted-foreground font-light leading-relaxed"
-                              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                              style={{
+                                fontFamily: "'Cormorant Garamond', serif",
+                              }}
                             >
                               {item.desc}
                             </p>
@@ -264,8 +475,12 @@ export default function SizeGuideModal({ open, onClose, category = "women" }: Pr
                         className="text-xs text-muted-foreground leading-relaxed"
                         style={{ fontFamily: "'Montserrat', sans-serif" }}
                       >
-                        Not sure about your measurements? Save your profile on our{" "}
-                        <a href="/measurements" className="text-primary underline underline-offset-2">
+                        Not sure about your measurements? Save your profile on
+                        our{" "}
+                        <a
+                          href="/measurements"
+                          className="text-primary underline underline-offset-2"
+                        >
                           Measurements page
                         </a>{" "}
                         and our team will help you find the perfect size.

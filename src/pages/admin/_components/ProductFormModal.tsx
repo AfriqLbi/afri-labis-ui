@@ -62,8 +62,8 @@ function productToForm(p: ApiProduct) {
   return {
     sku: p.sku,
     title: p.title,
-    brandId: "",
-    categoryId: "",
+    brandId: p.brandId ?? "", // prefill from normalised field
+    categoryId: p.categoryId ?? "", // prefill from normalised field
     price: String(p.price),
     compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : "",
     stock: String(p.stock),

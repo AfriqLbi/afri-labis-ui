@@ -555,13 +555,7 @@ function ProductDetail({
       <SizeGuideModal
         open={sizeGuideOpen}
         onClose={() => setSizeGuideOpen(false)}
-        category={
-          product.categorySlug === "men"
-            ? "men"
-            : product.categorySlug === "accessories"
-              ? "accessories"
-              : "women"
-        }
+        category={product.categorySlug}
       />
     </>
   );
