@@ -584,10 +584,15 @@ export default function OrderTrackingPage() {
                       >
                         {order.chargeCurrency && order.chargeCurrency !== "NGN"
                           ? formatMinorUnits(
-                              order.shippingFee ?? 0,
+                              // shippingFee is in NGN kobo — convert to chargeCurrency minor units
+                              Math.round(
+                                (order.shippingFee ?? 0) *
+                                  (order.fxRate ?? 1) *
+                                  (1 + (order.fxBuffer ?? 0) / 100),
+                              ),
                               order.chargeCurrency,
                             )
-                          : formatPrice((order.shippingFee ?? 0) / 100)}
+                          : formatMinorUnits(order.shippingFee ?? 0, "NGN")}
                       </span>
                     </div>
                   )}
@@ -806,12 +811,10 @@ function ShippingQuoteTimeline({
                   Shipping fee
                 </span>
                 <span className="text-primary font-semibold">
-                  {order.chargeCurrency !== "NGN"
-                    ? formatMinorUnits(
-                        order.shippingQuote.amount,
-                        order.chargeCurrency,
-                      )
-                    : formatPrice((order.shippingQuote.amount ?? 0) / 100)}
+                  {formatMinorUnits(
+                    order.shippingQuote.amount,
+                    order.chargeCurrency ?? "NGN",
+                  )}
                 </span>
               </div>
             )}

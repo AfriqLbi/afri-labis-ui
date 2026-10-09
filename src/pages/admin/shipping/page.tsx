@@ -20,6 +20,7 @@ import {
   Save,
   X,
   Truck,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -433,12 +434,7 @@ function ZoneEditor({
     onChange({ ...zone, [k]: v });
 
   // ── Local draft strings for comma-separated fields ───────────────────────
-  // We keep the raw text the user is typing separately from the parsed array.
-  // The array is only updated on blur so typing "NG, CA" works without the
-  // trailing comma being stripped on every keystroke.
-  const [countriesDraft, setCountriesDraft] = React.useState(
-    (zone.countries ?? []).join(", "),
-  );
+  // states: keep as raw draft text, parsed on blur
   const [statesDraft, setStatesDraft] = React.useState(
     (zone.states ?? []).join(", "),
   );
@@ -448,20 +444,10 @@ function ZoneEditor({
   React.useEffect(() => {
     const id = zone._id ?? "__new__";
     if (id !== prevZoneId.current) {
-      setCountriesDraft((zone.countries ?? []).join(", "));
       setStatesDraft((zone.states ?? []).join(", "));
       prevZoneId.current = id;
     }
-  }, [zone._id, zone.countries, zone.states]);
-
-  const commitCountries = () =>
-    set(
-      "countries",
-      countriesDraft
-        .split(",")
-        .map((s) => s.trim().toUpperCase())
-        .filter(Boolean),
-    );
+  }, [zone._id, zone.states]);
 
   const commitStates = () =>
     set(
@@ -535,29 +521,18 @@ function ZoneEditor({
             </select>
           </EF>
 
-          {/* Countries — draft string, parsed on blur */}
+          {/* Countries — searchable multi-select dropdown */}
           <EF
-            label="Countries (ISO codes, comma-separated)"
-            hint="e.g. NG  or  NG, CA"
+            label="Countries"
+            hint="select all that apply — leave empty for fallback zone"
           >
-            <input
-              value={countriesDraft}
-              onChange={(e) => setCountriesDraft(e.target.value)}
-              onBlur={commitCountries}
-              className="checkout-input"
-              placeholder="NG"
+            <CountryMultiSelect
+              selected={zone.countries ?? []}
+              onChange={(codes) => set("countries", codes)}
             />
-            {zone.countries?.length > 0 && (
-              <p
-                className="text-[10px] text-primary mt-1"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
-                Saved: {zone.countries.join(", ")}
-              </p>
-            )}
           </EF>
 
-          {/* States — draft string, parsed on blur */}
+          {/* States — free-text, parsed on blur */}
           <EF
             label="States (comma-separated, optional)"
             hint="leave blank = whole country"
@@ -1609,6 +1584,210 @@ function Section({
         )}
       </div>
       <div className="space-y-4">{children}</div>
+    </div>
+  );
+}
+
+// ── Country multi-select ──────────────────────────────────────────────────────
+
+// ISO 3166-1 alpha-2 country list — common countries first, rest alphabetical
+const ALL_COUNTRIES: { code: string; name: string }[] = [
+  { code: "NG", name: "Nigeria" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "GH", name: "Ghana" },
+  { code: "KE", name: "Kenya" },
+  { code: "ZA", name: "South Africa" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "IT", name: "Italy" },
+  { code: "ES", name: "Spain" },
+  { code: "NL", name: "Netherlands" },
+  { code: "BE", name: "Belgium" },
+  { code: "IE", name: "Ireland" },
+  { code: "SE", name: "Sweden" },
+  { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" },
+  { code: "FI", name: "Finland" },
+  { code: "CH", name: "Switzerland" },
+  { code: "AT", name: "Austria" },
+  { code: "PT", name: "Portugal" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "QA", name: "Qatar" },
+  { code: "SG", name: "Singapore" },
+  { code: "JP", name: "Japan" },
+  { code: "CN", name: "China" },
+  { code: "IN", name: "India" },
+  { code: "BR", name: "Brazil" },
+  { code: "MX", name: "Mexico" },
+  { code: "AR", name: "Argentina" },
+  { code: "EG", name: "Egypt" },
+  { code: "MA", name: "Morocco" },
+  { code: "ET", name: "Ethiopia" },
+  { code: "TZ", name: "Tanzania" },
+  { code: "UG", name: "Uganda" },
+  { code: "RW", name: "Rwanda" },
+  { code: "SN", name: "Senegal" },
+  { code: "CI", name: "Côte d'Ivoire" },
+  { code: "CM", name: "Cameroon" },
+];
+
+function CountryMultiSelect({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (codes: string[]) => void;
+}) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = ALL_COUNTRIES.filter(
+    (c) =>
+      c.name.toLowerCase().includes(query.toLowerCase()) ||
+      c.code.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  const toggle = (code: string) => {
+    if (selected.includes(code)) {
+      onChange(selected.filter((c) => c !== code));
+    } else {
+      onChange([...selected, code]);
+    }
+  };
+
+  const removeSelected = (code: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(selected.filter((c) => c !== code));
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Trigger — shows selected pills + search */}
+      <div
+        className={`min-h-[42px] w-full bg-input border ${open ? "border-primary" : "border-border"} text-foreground px-3 py-2 text-sm flex flex-wrap gap-1.5 items-center cursor-text transition-colors`}
+        onClick={() => setOpen(true)}
+      >
+        {selected.map((code) => {
+          const country = ALL_COUNTRIES.find((c) => c.code === code);
+          return (
+            <span
+              key={code}
+              className="flex items-center gap-1 bg-primary/10 text-primary text-[10px] tracking-wide uppercase px-2 py-0.5"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {code}
+              {country && (
+                <span className="text-muted-foreground normal-case tracking-normal font-normal">
+                  {country.name}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(e) => removeSelected(code, e)}
+                className="text-primary/60 hover:text-primary ml-0.5 cursor-pointer"
+              >
+                <X size={10} />
+              </button>
+            </span>
+          );
+        })}
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          placeholder={selected.length === 0 ? "Search countries…" : ""}
+          className="flex-1 min-w-[120px] bg-transparent outline-none text-xs text-foreground placeholder:text-muted-foreground"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        />
+        <Search size={13} className="text-muted-foreground shrink-0 ml-auto" />
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute top-full left-0 right-0 z-50 bg-card border border-border mt-0.5 max-h-56 overflow-y-auto shadow-lg">
+          {filtered.length === 0 ? (
+            <p
+              className="text-xs text-muted-foreground px-3 py-3"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              No countries found
+            </p>
+          ) : (
+            filtered.map((c) => {
+              const isSelected = selected.includes(c.code);
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => toggle(c.code)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer ${
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 border flex items-center justify-center shrink-0 ${
+                      isSelected ? "border-primary bg-primary" : "border-border"
+                    }`}
+                  >
+                    {isSelected && (
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                      >
+                        <path
+                          d="M1.5 5L4 7.5L8.5 2.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="square"
+                          className="text-primary-foreground"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <span
+                    className="text-[10px] tracking-[0.1em] uppercase font-semibold shrink-0"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    {c.code}
+                  </span>
+                  <span
+                    className="text-xs text-muted-foreground truncate"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    {c.name}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
