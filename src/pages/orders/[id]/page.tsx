@@ -584,15 +584,16 @@ export default function OrderTrackingPage() {
                       >
                         {order.chargeCurrency && order.chargeCurrency !== "NGN"
                           ? formatMinorUnits(
-                              // shippingFee is in NGN kobo — convert to chargeCurrency minor units
+                              // shippingFee is NGN naira → convert to chargeCurrency minor units
                               Math.round(
                                 (order.shippingFee ?? 0) *
+                                  100 *
                                   (order.fxRate ?? 1) *
                                   (1 + (order.fxBuffer ?? 0) / 100),
                               ),
                               order.chargeCurrency,
                             )
-                          : formatMinorUnits(order.shippingFee ?? 0, "NGN")}
+                          : formatPrice(order.shippingFee ?? 0)}
                       </span>
                     </div>
                   )}
