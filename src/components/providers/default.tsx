@@ -6,6 +6,7 @@ import { TooltipProvider } from "../ui/tooltip.tsx";
 import { CartProvider } from "@/hooks/use-cart.tsx";
 import CartDrawer from "@/components/CartDrawer.tsx";
 import { CookieConsent } from "@/components/CookieConsent.tsx";
+import SwUpdatePrompt from "@/components/SwUpdatePrompt.tsx";
 
 export function DefaultProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
                 <Toaster />
                 <CartDrawer />
                 <CookieConsent />
+                <SwUpdatePrompt />
                 {children}
               </CartProvider>
             </TooltipProvider>

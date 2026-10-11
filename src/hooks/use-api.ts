@@ -24,7 +24,8 @@ export function useProducts(
   return useQuery({
     queryKey: ["products", params],
     queryFn: () => catalog.listProducts(params),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000, // 5 minutes — product catalog changes infrequently
+    gcTime: 24 * 60 * 60_000,
   });
 }
 
@@ -32,7 +33,8 @@ export function useProduct(slug: string) {
   return useQuery({
     queryKey: ["product", slug],
     queryFn: () => catalog.getProduct(slug),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 24 * 60 * 60_000,
     enabled: !!slug,
   });
 }
@@ -41,7 +43,8 @@ export function useCategories(type?: "category" | "section") {
   return useQuery({
     queryKey: ["categories", type],
     queryFn: () => catalog.listCategories(type),
-    staleTime: 300_000,
+    staleTime: 10 * 60_000, // 10 minutes — categories barely change
+    gcTime: 24 * 60 * 60_000,
   });
 }
 
@@ -52,6 +55,7 @@ export function useMyOrders(page = 1) {
     queryKey: ["my-orders", page],
     queryFn: () => orders.mine(page),
     staleTime: 30_000,
+    meta: { persist: false }, // personal data — never write to localStorage
   });
 }
 
@@ -60,6 +64,7 @@ export function useOrder(id: string) {
     queryKey: ["order", id],
     queryFn: () => orders.get(id),
     staleTime: 30_000,
+    meta: { persist: false },
     enabled: !!id,
   });
 }
@@ -111,6 +116,7 @@ export function useAdminOrders(
     queryKey: ["admin-orders", params],
     queryFn: () => adminOrders.list(params),
     staleTime: 20_000,
+    meta: { persist: false },
   });
 }
 
@@ -121,6 +127,7 @@ export function useAdminCustomOrders(
     queryKey: ["admin-custom-orders", params],
     queryFn: () => adminCustomOrders.list(params),
     staleTime: 20_000,
+    meta: { persist: false },
   });
 }
 
@@ -131,6 +138,7 @@ export function useAdminMetrics() {
     queryKey: ["admin-metrics"],
     queryFn: () => adminAnalytics.metrics(),
     staleTime: 60_000,
+    meta: { persist: false },
   });
 }
 
@@ -139,6 +147,7 @@ export function useAdminRevenueSeries(months = 6) {
     queryKey: ["admin-revenue-series", months],
     queryFn: () => adminAnalytics.revenueSeries(months),
     staleTime: 60_000,
+    meta: { persist: false },
   });
 }
 
@@ -147,6 +156,7 @@ export function useAdminCategoryMix() {
     queryKey: ["admin-category-mix"],
     queryFn: () => adminAnalytics.categoryMix(),
     staleTime: 60_000,
+    meta: { persist: false },
   });
 }
 
@@ -155,6 +165,7 @@ export function useAdminTopProducts() {
     queryKey: ["admin-top-products"],
     queryFn: () => adminAnalytics.topProducts(),
     staleTime: 60_000,
+    meta: { persist: false },
   });
 }
 
@@ -167,6 +178,7 @@ export function useAdminProducts(
     queryKey: ["admin-products", params],
     queryFn: () => adminCatalog.listProducts(params),
     staleTime: 30_000,
+    meta: { persist: false },
   });
 }
 
@@ -175,6 +187,7 @@ export function useAdminLowStock() {
     queryKey: ["admin-low-stock"],
     queryFn: () => adminCatalog.lowStock(),
     staleTime: 60_000,
+    meta: { persist: false },
   });
 }
 
@@ -341,7 +354,8 @@ export function useLookbook() {
   return useQuery({
     queryKey: ["lookbook"],
     queryFn: () => lookbook.list(),
-    staleTime: 120_000,
+    staleTime: 10 * 60_000,
+    gcTime: 24 * 60 * 60_000,
   });
 }
 
@@ -422,6 +436,7 @@ export function useShippingEstimate(
     enabled: !!address?.country,
     staleTime: 60_000,
     retry: 1,
+    meta: { persist: false },
   });
 }
 
@@ -431,7 +446,8 @@ export function useAdminShippingZones() {
   return useQuery({
     queryKey: ["admin-shipping-zones"],
     queryFn: () => adminShipping.listZones(),
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    gcTime: 24 * 60 * 60_000,
   });
 }
 
@@ -441,13 +457,15 @@ export function useAdminShippingQuotes() {
     queryFn: () => adminShipping.listQuotes(),
     staleTime: 15_000,
     refetchInterval: 60_000,
+    meta: { persist: false },
   });
 }
 export function useAdminShippingSettings() {
   return useQuery({
     queryKey: ["admin-shipping-settings"],
     queryFn: () => adminShipping.getSettings(),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 24 * 60 * 60_000,
   });
 }
 

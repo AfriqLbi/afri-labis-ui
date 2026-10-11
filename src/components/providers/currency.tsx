@@ -70,9 +70,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const { data, isLoading } = useQuery({
     queryKey: ["geo-context"],
     queryFn: () => geo.getContext(),
-    staleTime: 4 * 60 * 60 * 1000,   // 4 hours — matches backend refresh cron
+    staleTime: 4 * 60 * 60 * 1000, // 4 hours — matches backend FX refresh cron
+    gcTime: 24 * 60 * 60 * 1000, // keep in localStorage for 24 h
     retry: 1,
-    // Don't refetch on window focus — rates are updated by the backend cron
     refetchOnWindowFocus: false,
   });
 
