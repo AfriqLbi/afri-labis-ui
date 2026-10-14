@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   ChevronDown,
   ChevronRight,
+  Share2,
 } from "lucide-react";
 import { formatPrice } from "@/lib/products.ts";
 import Header from "../../_components/Header.tsx";
@@ -170,6 +171,21 @@ function ProductDetail({
     // Pass the product's MongoDB _id so the server cart can look it up
     void addItem(product._id, 1);
     toast.success(`${local.name} added to cart`);
+  };
+
+  const handleShare = async () => {
+    const url = `https://labiafrica.com/shop/${product.slug || product._id}`;
+    const text = `${product.title} by LÁBí — ${product.description?.slice(0, 100) ?? "Contemporary African fashion made in Nigeria."}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: product.title, text, url });
+      } catch {
+        // User cancelled — no action needed
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Product link copied to clipboard");
+    }
   };
 
   return (
@@ -383,8 +399,17 @@ function ProductDetail({
                     ? "border-primary text-primary"
                     : "border-border text-muted-foreground hover:border-primary hover:text-primary"
                 }`}
+                aria-label="Save to wishlist"
               >
                 <Heart size={16} className={wished ? "fill-primary" : ""} />
+              </button>
+              <button
+                onClick={handleShare}
+                className="w-14 h-14 border border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-all cursor-pointer"
+                aria-label="Share this product"
+                title="Share"
+              >
+                <Share2 size={16} />
               </button>
             </div>
 

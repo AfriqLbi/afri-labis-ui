@@ -106,7 +106,10 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         ngnKobo,
         c,
         rateEntry.rate,
-        fxBuffer,
+        // fxBuffer is a spread applied to foreign-currency conversions only.
+        // For NGN prices the rate is always 1 and no buffer should be added —
+        // otherwise ₦75,000 displays as ₦76,500 (at 2% buffer).
+        c === "NGN" ? 0 : fxBuffer,
         rateEntry.symbol,
       );
     },

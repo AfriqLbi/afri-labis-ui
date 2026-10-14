@@ -27,8 +27,8 @@ interface PageMetaProps {
 }
 
 const SITE_NAME = "LÁBí";
-const SITE_URL  = "https://labiafrica.com";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg`;
+const SITE_URL = "https://labiafrica.com";
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image-1200x630.png`;
 const DEFAULT_DESCRIPTION =
   "LÁBí (Èwà Omoluabi) — Contemporary African fashion rooted in heritage craft. Handwoven Aṣọ-Òkè, FÌLÁ and modern African pieces made in Ilorin, Nigeria.";
 
@@ -54,7 +54,9 @@ function setLink(rel: string, href: string) {
 }
 
 function setStructuredData(id: string, data: object) {
-  let el = document.querySelector<HTMLScriptElement>(`script[data-page-ld="${id}"]`);
+  let el = document.querySelector<HTMLScriptElement>(
+    `script[data-page-ld="${id}"]`,
+  );
   if (!el) {
     el = document.createElement("script");
     el.setAttribute("type", "application/ld+json");
@@ -78,7 +80,9 @@ export default function PageMeta({
   noIndex = false,
 }: PageMetaProps) {
   useEffect(() => {
-    const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — Aṣọ-Òkè & African Fashion | Ilorin, Nigeria`;
+    const fullTitle = title
+      ? `${title} | ${SITE_NAME}`
+      : `${SITE_NAME} — Aṣọ-Òkè & African Fashion | Ilorin, Nigeria`;
     const canonicalUrl = canonical ?? window.location.href;
     const pageId = "page-meta-ld";
 
@@ -92,17 +96,22 @@ export default function PageMeta({
     setLink("canonical", canonicalUrl);
 
     // Open Graph
-    setMeta("og:title",       fullTitle,     true);
-    setMeta("og:description", description,   true);
-    setMeta("og:image",       image,         true);
-    setMeta("og:url",         canonicalUrl,  true);
-    setMeta("og:type",        type,          true);
-    setMeta("og:site_name",   SITE_NAME,     true);
+    setMeta("og:title", fullTitle, true);
+    setMeta("og:description", description, true);
+    setMeta("og:image", image, true);
+    setMeta("og:image:width", "1200", true);
+    setMeta("og:image:height", "630", true);
+    setMeta("og:image:alt", title ?? SITE_NAME, true);
+    setMeta("og:url", canonicalUrl, true);
+    setMeta("og:type", type, true);
+    setMeta("og:site_name", SITE_NAME, true);
 
     // Twitter
-    setMeta("twitter:title",       fullTitle);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", fullTitle);
     setMeta("twitter:description", description);
-    setMeta("twitter:image",       image);
+    setMeta("twitter:image", image);
+    setMeta("twitter:image:alt", title ?? SITE_NAME);
 
     // Structured data
     if (structuredData) {
@@ -118,11 +127,11 @@ export default function PageMeta({
       setMeta("description", DEFAULT_DESCRIPTION);
       setMeta("robots", "index, follow");
       setLink("canonical", SITE_URL);
-      setMeta("og:title",       `${SITE_NAME} — Aṣọ-Òkè & African Fashion`, true);
+      setMeta("og:title", `${SITE_NAME} — Aṣọ-Òkè & African Fashion`, true);
       setMeta("og:description", DEFAULT_DESCRIPTION, true);
-      setMeta("og:image",       DEFAULT_OG_IMAGE,    true);
-      setMeta("og:url",         SITE_URL,            true);
-      setMeta("og:type",        "website",           true);
+      setMeta("og:image", DEFAULT_OG_IMAGE, true);
+      setMeta("og:url", SITE_URL, true);
+      setMeta("og:type", "website", true);
       removeStructuredData(pageId);
     };
   }, [title, description, canonical, image, type, structuredData, noIndex]);

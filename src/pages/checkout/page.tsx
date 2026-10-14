@@ -310,7 +310,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-background">
       <PageMeta title="Checkout" noIndex={true} />
       <Header />
-      <div className="pt-[65px]">
+      <div className="pt-16.25">
         {step === "confirmation" ? (
           <Confirmation
             contact={contact}
