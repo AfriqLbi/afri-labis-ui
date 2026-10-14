@@ -48,12 +48,37 @@ export default defineConfig({
             src: "/favicon.svg",
             sizes: "any",
             type: "image/svg+xml",
-            purpose: "any maskable",
+            purpose: "any",
+          },
+          {
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-maskable-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
+            src: "/icon-maskable-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
           {
             src: "/apple-touch-icon.png",
             sizes: "180x180",
             type: "image/png",
+            purpose: "any",
           },
         ],
         shortcuts: [
@@ -115,7 +140,7 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
               expiration: {
                 maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30,
               },
             },
           },
@@ -132,45 +157,14 @@ export default defineConfig({
               },
             },
           },
-          // API: public catalog (products, categories, brands) — network-first
-          // with 5 s timeout, falling back to cache.  Ensures fresh prices
-          // while still working offline with last-known data.
-          {
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith("/v1/catalog/") ||
-              url.pathname.startsWith("/v1/lookbook") ||
-              url.pathname.startsWith("/v1/hero-banners"),
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "labi-api-catalog",
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24, // 24 h offline fallback
-              },
-            },
-          },
-          // API: FX rates + geo context — stale-while-revalidate
-          // (matches the 4 h backend refresh cron)
-          {
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith("/v1/fx/") ||
-              url.pathname.startsWith("/v1/geo/"),
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "labi-api-fx",
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 4, // 4 h
-              },
-            },
-          },
+          // NOTE: API calls to api.labiafrica.com are intentionally NOT cached
+          // by the service worker.  They are cross-origin requests with
+          // credentials — caching them inside the SW context causes CORS
+          // preflight failures (ERR_FAILED).  TanStack Query handles all API
+          // response caching client-side with localStorage persistence.
         ],
 
         // ── Routes that must NEVER be served from cache ──────────────────────
-        // Auth, cart, orders, checkout, admin — always hit the network.
         navigateFallbackDenylist: [
           /^\/v1\/(auth|admin|orders|cart|payments|shipping)\//,
         ],

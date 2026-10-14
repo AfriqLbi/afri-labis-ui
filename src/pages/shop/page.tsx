@@ -149,7 +149,7 @@ export default function ShopPage() {
       <Header />
 
       {/* Page hero */}
-      <div className="pt-[65px] border-b border-border">
+      <div className="pt-16.25 border-b border-border">
         <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <p
@@ -266,7 +266,7 @@ export default function ShopPage() {
                         setSort(o.id);
                         setSortOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-xs tracking-[0.1em] uppercase transition-colors cursor-pointer ${
+                      className={`w-full text-left px-4 py-3 text-xs tracking-widest uppercase transition-colors cursor-pointer ${
                         sort === o.id
                           ? "text-primary"
                           : "text-muted-foreground hover:text-foreground"

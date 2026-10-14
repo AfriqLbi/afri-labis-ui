@@ -67,7 +67,7 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="pt-[65px]">
+        <div className="pt-16.25">
           <ProductDetailSkeleton />
         </div>
       </div>
@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
         }}
       />
       <Header />
-      <div className="pt-[65px]">
+      <div className="pt-16.25">
         <ProductDetail product={product} similar={apiSimilar} />
       </div>
       <Footer />

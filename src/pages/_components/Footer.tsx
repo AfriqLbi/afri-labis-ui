@@ -66,15 +66,15 @@ const FOOTER_LINKS: Record<string, { label: string; href: string }[]> = {
     { label: "Our Story", href: "/about" },
     { label: "Artisans", href: "/about" },
     { label: "Sustainability", href: "/about" },
-    { label: "Careers", href: "#" },
-    { label: "Press", href: "#" },
+    { label: "Careers", href: "mailto:careers@labiafrica.com" },
+    { label: "Press", href: "mailto:press@labiafrica.com" },
   ],
   Help: [
     { label: "Sizing Guide", href: "/measurements" },
-    { label: "Shipping & Returns", href: "/legal/terms#8" },
-    { label: "FAQ", href: "#" },
-    { label: "Contact Us", href: "#" },
-    { label: "Store Locator", href: "#" },
+    { label: "Shipping & Returns", href: "/legal/terms" },
+    { label: "FAQ", href: "/about#faq" },
+    { label: "Contact Us", href: "mailto:hello@labiafrica.com" },
+    { label: "Custom Orders", href: "/custom-order" },
   ],
 };
 
@@ -119,7 +119,7 @@ export default function Footer() {
                 {
                   icon: <TikTokIcon className="w-4 h-4" />,
                   label: "TikTok",
-                  href: "#",
+                  href: "https://www.tiktok.com/@labiiafrica",
                 },
               ].map(({ icon, label, href }) => (
                 <a
@@ -144,17 +144,40 @@ export default function Footer() {
                 {section}
               </h4>
               <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.href}
-                      className="text-muted-foreground hover:text-foreground text-sm font-light transition-colors"
-                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                {links.map((link) => {
+                  const isExternal =
+                    link.href.startsWith("mailto:") ||
+                    link.href.startsWith("http");
+                  return (
+                    <li key={link.label}>
+                      {isExternal ? (
+                        <a
+                          href={link.href}
+                          className="text-muted-foreground hover:text-foreground text-sm font-light transition-colors"
+                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                          target={
+                            link.href.startsWith("http") ? "_blank" : undefined
+                          }
+                          rel={
+                            link.href.startsWith("http")
+                              ? "noopener noreferrer"
+                              : undefined
+                          }
+                        >
+                          {link.label}
+                        </a>
+                      ) : (
+                        <Link
+                          to={link.href}
+                          className="text-muted-foreground hover:text-foreground text-sm font-light transition-colors"
+                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                        >
+                          {link.label}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}

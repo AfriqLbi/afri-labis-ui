@@ -369,12 +369,15 @@ function ProfileTab({
     e.preventDefault();
     setSaving(true);
     try {
-      // Profile updates go through auth/me — backend PATCH not yet exposed,
-      // so we optimistically confirm and show saved state.
-      await new Promise((r) => setTimeout(r, 400)); // placeholder
+      const { auth: authApi } = await import("@/lib/api.ts");
+      await authApi.updateProfile({ name: form.name, phone: form.phone });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       toast.success("Profile saved");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not save profile",
+      );
     } finally {
       setSaving(false);
     }

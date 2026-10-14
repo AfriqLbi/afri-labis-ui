@@ -4,9 +4,13 @@ import { AnimatePresence, motion } from "motion/react";
 
 type SizeUnit = "cm" | "inches";
 type SizeChart = "women" | "men" | "children" | "accessories";
+type SizeSystem = "int" | "uk" | "us" | "eu" | "fr";
+
+// ── Size data ──────────────────────────────────────────────────────────────────
+// Each row: body measurements in [cm, inches], plus size labels per system.
 
 type SizeRow = {
-  size: string;
+  labels: Record<SizeSystem, string>;
   bust: [number, number];
   waist: [number, number];
   hips: [number, number];
@@ -15,132 +19,152 @@ type SizeRow = {
 
 const WOMEN_SIZES: SizeRow[] = [
   {
-    size: "XS",
+    labels: { int: "XS", uk: "6", us: "2", eu: "34", fr: "36" },
     bust: [76, 30],
     waist: [61, 24],
     hips: [84, 33],
     length: [120, 47],
   },
   {
-    size: "S",
+    labels: { int: "S", uk: "8", us: "4", eu: "36", fr: "38" },
     bust: [81, 32],
     waist: [66, 26],
     hips: [89, 35],
     length: [122, 48],
   },
   {
-    size: "M",
+    labels: { int: "M", uk: "10", us: "6", eu: "38", fr: "40" },
     bust: [86, 34],
     waist: [71, 28],
     hips: [94, 37],
     length: [124, 49],
   },
   {
-    size: "L",
+    labels: { int: "L", uk: "12", us: "8", eu: "40", fr: "42" },
     bust: [91, 36],
     waist: [76, 30],
     hips: [99, 39],
     length: [126, 50],
   },
   {
-    size: "XL",
+    labels: { int: "XL", uk: "14", us: "10", eu: "42", fr: "44" },
     bust: [97, 38],
     waist: [81, 32],
     hips: [104, 41],
     length: [128, 50],
   },
   {
-    size: "XXL",
+    labels: { int: "XXL", uk: "16", us: "12", eu: "44", fr: "46" },
     bust: [102, 40],
     waist: [86, 34],
     hips: [109, 43],
     length: [130, 51],
   },
+  {
+    labels: { int: "3XL", uk: "18", us: "14", eu: "46", fr: "48" },
+    bust: [107, 42],
+    waist: [91, 36],
+    hips: [114, 45],
+    length: [132, 52],
+  },
 ];
 
 const MEN_SIZES: SizeRow[] = [
   {
-    size: "XS",
+    labels: { int: "XS", uk: "34", us: "XS", eu: "44", fr: "44" },
     bust: [86, 34],
     waist: [71, 28],
     hips: [86, 34],
     length: [100, 39],
   },
   {
-    size: "S",
+    labels: { int: "S", uk: "36", us: "S", eu: "46", fr: "46" },
     bust: [91, 36],
     waist: [76, 30],
     hips: [91, 36],
     length: [103, 40],
   },
   {
-    size: "M",
+    labels: { int: "M", uk: "38", us: "M", eu: "48", fr: "48" },
     bust: [97, 38],
     waist: [81, 32],
     hips: [97, 38],
     length: [106, 42],
   },
   {
-    size: "L",
+    labels: { int: "L", uk: "40", us: "L", eu: "50", fr: "50" },
     bust: [102, 40],
     waist: [86, 34],
     hips: [102, 40],
     length: [109, 43],
   },
   {
-    size: "XL",
+    labels: { int: "XL", uk: "42", us: "XL", eu: "52", fr: "52" },
     bust: [107, 42],
     waist: [91, 36],
     hips: [107, 42],
     length: [112, 44],
   },
   {
-    size: "XXL",
+    labels: { int: "XXL", uk: "44", us: "2XL", eu: "54", fr: "54" },
     bust: [112, 44],
     waist: [97, 38],
     hips: [112, 44],
     length: [115, 45],
   },
+  {
+    labels: { int: "3XL", uk: "46", us: "3XL", eu: "56", fr: "56" },
+    bust: [117, 46],
+    waist: [102, 40],
+    hips: [117, 46],
+    length: [118, 46],
+  },
 ];
 
 const CHILDREN_SIZES: SizeRow[] = [
   {
-    size: "2–3Y",
+    labels: { int: "2–3Y", uk: "2–3Y", us: "2T–3T", eu: "92–98", fr: "2–3" },
     bust: [54, 21],
     waist: [51, 20],
     hips: [57, 22],
     length: [62, 24],
   },
   {
-    size: "4–5Y",
+    labels: { int: "4–5Y", uk: "4–5Y", us: "4T–5T", eu: "104–110", fr: "4–5" },
     bust: [58, 23],
     waist: [54, 21],
     hips: [61, 24],
     length: [70, 28],
   },
   {
-    size: "6–7Y",
+    labels: { int: "6–7Y", uk: "6–7Y", us: "6–7", eu: "116–122", fr: "6–7" },
     bust: [63, 25],
     waist: [57, 22],
     hips: [66, 26],
     length: [78, 31],
   },
   {
-    size: "8–9Y",
+    labels: { int: "8–9Y", uk: "8–9Y", us: "8–9", eu: "128–134", fr: "8–9" },
     bust: [68, 27],
     waist: [61, 24],
     hips: [71, 28],
     length: [86, 34],
   },
   {
-    size: "10–11Y",
+    labels: {
+      int: "10–11Y",
+      uk: "10–11Y",
+      us: "10–12",
+      eu: "140–146",
+      fr: "10–12",
+    },
     bust: [74, 29],
     waist: [65, 26],
     hips: [77, 30],
     length: [94, 37],
   },
   {
-    size: "12–13Y",
+    labels: { int: "12–13Y", uk: "12–13Y", us: "14", eu: "152–158", fr: "14" },
     bust: [80, 31],
     waist: [68, 27],
     hips: [83, 33],
@@ -149,9 +173,30 @@ const CHILDREN_SIZES: SizeRow[] = [
 ];
 
 const ACCESSORIES_SIZES: SizeRow[] = [
-  { size: "XS/S", bust: [76, 30], waist: [61, 24], hips: [84, 33] },
-  { size: "M/L", bust: [89, 35], waist: [74, 29], hips: [97, 38] },
-  { size: "XL/XXL", bust: [102, 40], waist: [86, 34], hips: [109, 43] },
+  {
+    labels: { int: "XS/S", uk: "6–8", us: "2–4", eu: "34–36", fr: "36–38" },
+    bust: [76, 30],
+    waist: [61, 24],
+    hips: [84, 33],
+  },
+  {
+    labels: { int: "M/L", uk: "10–12", us: "6–8", eu: "38–40", fr: "40–42" },
+    bust: [89, 35],
+    waist: [74, 29],
+    hips: [97, 38],
+  },
+  {
+    labels: {
+      int: "XL/XXL",
+      uk: "14–16",
+      us: "10–12",
+      eu: "42–44",
+      fr: "44–46",
+    },
+    bust: [102, 40],
+    waist: [86, 34],
+    hips: [109, 43],
+  },
 ];
 
 const CHART_DATA: Record<SizeChart, SizeRow[]> = {
@@ -168,12 +213,15 @@ const CHART_LABEL: Record<SizeChart, string> = {
   accessories: "Accessories",
 };
 
+const SIZE_SYSTEMS: { id: SizeSystem; label: string }[] = [
+  { id: "int", label: "INT" },
+  { id: "uk", label: "UK" },
+  { id: "us", label: "US" },
+  { id: "eu", label: "EU" },
+  { id: "fr", label: "FR" },
+];
+
 // ── Slug → chart mapping ───────────────────────────────────────────────────────
-// Maps every Labi category slug to the appropriate size chart.
-// Garment-type slugs that are primarily menswear map to "men".
-// Women-specific garments map to "women".  Children maps to "children".
-// Accessories and fabrics map to "accessories".
-// Any unknown slug defaults to "women".
 
 const MEN_SLUGS = new Set([
   "men",
@@ -187,15 +235,12 @@ const MEN_SLUGS = new Set([
   "aso-oke-hoodie-both-side",
   "aso-oke-padded-jacket-double-side",
 ]);
-
 const WOMEN_SLUGS = new Set([
   "women",
   "crop-top-jacket-ladies",
   "aso-oke-gown",
 ]);
-
 const CHILDREN_SLUGS = new Set(["children"]);
-
 const ACCESSORIES_SLUGS = new Set([
   "accessories",
   "aso-oke-material",
@@ -209,8 +254,10 @@ function slugToChart(slug: string): SizeChart {
   if (WOMEN_SLUGS.has(slug)) return "women";
   if (CHILDREN_SLUGS.has(slug)) return "children";
   if (ACCESSORIES_SLUGS.has(slug)) return "accessories";
-  return "women"; // safe default
+  return "women";
 }
+
+// ── How to measure ─────────────────────────────────────────────────────────────
 
 const HOW_TO_MEASURE = [
   {
@@ -232,9 +279,6 @@ const HOW_TO_MEASURE = [
 ];
 
 // ── Props ─────────────────────────────────────────────────────────────────────
-// `category` accepts either the old "women" | "men" | "accessories" values OR
-// any Labi category slug (e.g. "cargo-pants", "aso-oke-gown").  The component
-// resolves the correct chart internally.
 
 type Props = {
   open: boolean;
@@ -249,11 +293,12 @@ export default function SizeGuideModal({
   category = "women",
 }: Props) {
   const [unit, setUnit] = useState<SizeUnit>("cm");
+  const [sizeSystem, setSys] = useState<SizeSystem>("int");
   const [tab, setTab] = useState<"chart" | "how-to">("chart");
 
   const chart = slugToChart(category);
   const rows = CHART_DATA[chart];
-  const hasLength = rows.some((r) => r.length != null);
+  const hasLen = rows.some((r) => r.length != null);
 
   const col = (val: [number, number]) => (unit === "cm" ? val[0] : val[1]);
 
@@ -324,28 +369,55 @@ export default function SizeGuideModal({
 
                 {tab === "chart" && (
                   <>
-                    {/* Unit toggle */}
-                    <div className="flex items-center gap-2 mb-5">
-                      <span
-                        className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground"
-                        style={{ fontFamily: "'Montserrat', sans-serif" }}
-                      >
-                        Unit:
-                      </span>
-                      {(["cm", "inches"] as const).map((u) => (
-                        <button
-                          key={u}
-                          onClick={() => setUnit(u)}
-                          className={`px-4 py-1.5 text-xs tracking-wide border transition-all cursor-pointer ${
-                            unit === u
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "border-border text-muted-foreground hover:border-foreground/40"
-                          }`}
+                    {/* Controls row: unit + size system */}
+                    <div className="flex flex-wrap items-center gap-4 mb-5">
+                      {/* Unit toggle */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground"
                           style={{ fontFamily: "'Montserrat', sans-serif" }}
                         >
-                          {u}
-                        </button>
-                      ))}
+                          Unit:
+                        </span>
+                        {(["cm", "inches"] as const).map((u) => (
+                          <button
+                            key={u}
+                            onClick={() => setUnit(u)}
+                            className={`px-3 py-1.5 text-xs tracking-wide border transition-all cursor-pointer ${
+                              unit === u
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "border-border text-muted-foreground hover:border-foreground/40"
+                            }`}
+                            style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Size system toggle */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-[10px] tracking-[0.15em] uppercase text-muted-foreground"
+                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                        >
+                          Region:
+                        </span>
+                        {SIZE_SYSTEMS.map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => setSys(s.id)}
+                            className={`px-3 py-1.5 text-xs tracking-wide border transition-all cursor-pointer ${
+                              sizeSystem === s.id
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "border-border text-muted-foreground hover:border-foreground/40"
+                            }`}
+                            style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Table */}
@@ -358,14 +430,14 @@ export default function SizeGuideModal({
                           <tr className="border-b border-border">
                             {[
                               "Size",
-                              "Bust / Chest",
+                              `Bust${chart === "men" ? " / Chest" : ""}`,
                               "Waist",
                               "Hips",
-                              ...(hasLength ? ["Length"] : []),
+                              ...(hasLen ? ["Length"] : []),
                             ].map((h) => (
                               <th
                                 key={h}
-                                className="py-3 px-4 text-left text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-normal"
+                                className="py-3 px-3 text-left text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-normal whitespace-nowrap"
                               >
                                 {h}
                                 {h !== "Size" && (
@@ -380,31 +452,29 @@ export default function SizeGuideModal({
                         <tbody>
                           {rows.map((row, i) => (
                             <tr
-                              key={row.size}
-                              className={`border-b border-border/50 ${
-                                i % 2 === 0 ? "bg-muted/20" : ""
-                              }`}
+                              key={i}
+                              className={`border-b border-border/50 ${i % 2 === 0 ? "bg-muted/20" : ""}`}
                             >
-                              <td className="py-3 px-4 font-semibold text-primary">
-                                {row.size}
+                              <td className="py-3 px-3 font-semibold text-primary whitespace-nowrap">
+                                {row.labels[sizeSystem]}
+                                {sizeSystem !== "int" && (
+                                  <span className="ml-1.5 text-muted-foreground font-normal">
+                                    ({row.labels.int})
+                                  </span>
+                                )}
                               </td>
-                              <td className="py-3 px-4 text-foreground">
+                              <td className="py-3 px-3 text-foreground">
                                 {col(row.bust)}
                               </td>
-                              <td className="py-3 px-4 text-foreground">
+                              <td className="py-3 px-3 text-foreground">
                                 {col(row.waist)}
                               </td>
-                              <td className="py-3 px-4 text-foreground">
+                              <td className="py-3 px-3 text-foreground">
                                 {col(row.hips)}
                               </td>
-                              {hasLength && row.length && (
-                                <td className="py-3 px-4 text-foreground">
-                                  {col(row.length)}
-                                </td>
-                              )}
-                              {hasLength && !row.length && (
-                                <td className="py-3 px-4 text-muted-foreground">
-                                  —
+                              {hasLen && (
+                                <td className="py-3 px-3 text-foreground">
+                                  {row.length ? col(row.length) : "—"}
                                 </td>
                               )}
                             </tr>

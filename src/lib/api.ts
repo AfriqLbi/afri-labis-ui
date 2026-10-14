@@ -425,6 +425,11 @@ export const auth = {
   me(context: "customer" | "none" = "customer") {
     return request<AuthUser>("GET", "/auth/me", undefined, { context });
   },
+  updateProfile(dto: { name?: string; phone?: string }) {
+    return request<AuthUser>("PATCH", "/auth/profile", dto, {
+      context: "customer",
+    });
+  },
 };
 
 // ── Auth — Admin ───────────────────────────────────────────────────────────────
@@ -984,6 +989,17 @@ export const adminCustomOrders = {
     return request<ApiCustomOrder>(
       "PATCH",
       `/admin/custom-orders/${id}/production`,
+    );
+  },
+  updateProductionStage(
+    id: string,
+    stage: "cutting" | "sewing" | "quality_check" | "ready" | "delivered",
+    note?: string,
+  ) {
+    return request<ApiCustomOrder>(
+      "PATCH",
+      `/admin/custom-orders/${id}/production-stage`,
+      { stage, note },
     );
   },
   markCompleted(id: string) {

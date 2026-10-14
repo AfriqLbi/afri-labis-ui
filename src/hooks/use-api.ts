@@ -348,6 +348,26 @@ export function useAdminMoveCustomOrderToProduction() {
   });
 }
 
+export function useAdminUpdateCustomOrderProductionStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      stage,
+      note,
+    }: {
+      id: string;
+      stage: "cutting" | "sewing" | "quality_check" | "ready" | "delivered";
+      note?: string;
+    }) => adminCustomOrders.updateProductionStage(id, stage, note),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-custom-orders"] });
+      qc.invalidateQueries({ queryKey: ["admin-custom-orders-production"] });
+      qc.invalidateQueries({ queryKey: ["production-history"] });
+    },
+  });
+}
+
 // ── Lookbook ──────────────────────────────────────────────────────────────────
 
 export function useLookbook() {
