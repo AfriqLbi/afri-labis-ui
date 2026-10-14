@@ -106,15 +106,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigateRef = useRef<ReturnType<typeof useNavigate> | null>(null);
 
   // Background verify — confirm the stored token is still valid.
-  // Pass context:"none" so a 401 here NEVER triggers the session-expired toast.
-  // For a guest with no token, a 401 just means "not logged in" — not an expiry.
+  // Skip entirely if no user is cached — a guest has no cookie to verify,
+  // so calling auth/me would just produce a wasteful 401 on every page load.
   useEffect(() => {
+    const cached = readUser(USER_KEY);
+    if (!cached) {
+      // No cached session — skip the round-trip, immediately mark done
+      setLoad(false);
+      return;
+    }
     apiAuth
       .me("none")
       .then((u) => {
         setUser(u);
         writeUser(USER_KEY, u);
-        markCustomerSessionActive(); // arm the expiry callback — session confirmed active
+        markCustomerSessionActive();
       })
       .catch(() => {
         clearUser(USER_KEY);
@@ -209,6 +215,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const navigateRef = useRef<ReturnType<typeof useNavigate> | null>(null);
 
   useEffect(() => {
+    const cached = readUser(ADMIN_USER_KEY);
+    if (!cached) {
+      // No cached admin session — skip the round-trip entirely.
+      // On storefront pages this prevents a pointless 401 to admin/auth/me
+      // on every visitor's page load.
+      setLoad(false);
+      return;
+    }
     apiAdminAuth
       .me("none")
       .then((u) => {

@@ -162,6 +162,41 @@ export default defineConfig({
           // credentials — caching them inside the SW context causes CORS
           // preflight failures (ERR_FAILED).  TanStack Query handles all API
           // response caching client-side with localStorage persistence.
+          // API: public catalog (products, categories, brands) — network-first
+          // with 5 s timeout, falling back to cache.  Ensures fresh prices
+          // while still working offline with last-known data.
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith("/v1/catalog/") ||
+              url.pathname.startsWith("/v1/lookbook") ||
+              url.pathname.startsWith("/v1/hero-banners"),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "labi-api-catalog",
+              networkTimeoutSeconds: 5,
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24, // 24 h offline fallback
+              },
+            },
+          },
+          // API: FX rates + geo context — stale-while-revalidate
+          // (matches the 4 h backend refresh cron)
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith("/v1/fx/") ||
+              url.pathname.startsWith("/v1/geo/"),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "labi-api-fx",
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 4, // 4 h
+              },
+            },
+          },
         ],
 
         // ── Routes that must NEVER be served from cache ──────────────────────
