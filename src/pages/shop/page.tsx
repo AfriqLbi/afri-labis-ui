@@ -9,6 +9,7 @@ import { useProducts, useCategories } from "@/hooks/use-api.ts";
 import type { ApiProduct } from "@/lib/api.ts";
 import { ProductGridSkeleton } from "@/components/ui/skeleton.tsx";
 import PageMeta from "@/components/PageMeta.tsx";
+import { CategoryBar } from "./_components/CategoryBar.tsx";
 
 // ── Adapts API product to the shape ProductCard expects ──────────────────────
 function toLocalProduct(p: ApiProduct) {
@@ -176,7 +177,7 @@ export default function ShopPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Category pills */}
-        <div className="flex gap-2 flex-wrap mb-8 overflow-x-auto pb-1">
+        {/* <div className="flex gap-2 flex-wrap mb-8 overflow-x-auto pb-1">
           {allCategories.map((cat) => (
             <button
               key={cat.slug}
@@ -191,7 +192,12 @@ export default function ShopPage() {
               {cat.name}
             </button>
           ))}
-        </div>
+        </div> */}
+        <CategoryBar
+          categories={allCategories}
+          active={category}
+          onChange={handleCategoryChange}
+        />
 
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           {/* Filter button */}

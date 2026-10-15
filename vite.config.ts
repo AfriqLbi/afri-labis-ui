@@ -44,12 +44,7 @@ export default defineConfig({
         lang: "en",
         categories: ["shopping", "lifestyle"],
         icons: [
-          {
-            src: "/favicon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any",
-          },
+          // SVG removed — Chrome PWA installer cannot load SVG manifest icons.
           {
             src: "/icon-192.png",
             sizes: "192x192",
@@ -81,16 +76,35 @@ export default defineConfig({
             purpose: "any",
           },
         ],
+        // Wide screenshot unlocks richer install UI on desktop Chrome
+        screenshots: [
+          {
+            src: "/og-image-1200x630.png",
+            sizes: "1200x630",
+            type: "image/png",
+            form_factor: "wide",
+            label: "LÁBí Shop — Contemporary African Fashion",
+          },
+          {
+            src: "/og-image-1200x630.png",
+            sizes: "1200x630",
+            type: "image/png",
+            form_factor: "narrow",
+            label: "LÁBí — African Fashion",
+          },
+        ],
         shortcuts: [
           {
             name: "Shop",
             url: "/shop",
             description: "Browse the LÁBí collection",
+            icons: [{ src: "/icon-96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "Custom Order",
             url: "/custom-order",
             description: "Request a bespoke garment",
+            icons: [{ src: "/icon-96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
       },
