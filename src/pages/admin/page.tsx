@@ -186,7 +186,13 @@ export default function AdminOverviewPage() {
                 tick={{ fill: "#888", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v: number) => `₦${(v / 1000).toFixed(0)}k`}
+                tickFormatter={(v: number) =>
+                    v >= 1_000_000
+                      ? `₦${(v / 1_000_000).toFixed(1)}M`
+                      : v >= 1_000
+                        ? `₦${(v / 1_000).toFixed(0)}k`
+                        : `₦${v}`
+                  }
               />
               <Tooltip
                 cursor={{ fill: "rgba(255,255,255,0.04)" }}
