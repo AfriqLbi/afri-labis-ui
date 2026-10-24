@@ -179,7 +179,7 @@ function ProductDetail({
     const text = `${product.title} by LÁBí — ${product.description?.slice(0, 100) ?? "Contemporary African fashion made in Nigeria."}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: product.title, text, url });
+        await navigator.share({ url });
       } catch {
         // User cancelled — no action needed
       }
