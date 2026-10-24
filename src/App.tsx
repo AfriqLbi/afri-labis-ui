@@ -10,6 +10,7 @@ import Index from "./pages/Index.tsx";
 import ShopPage from "./pages/shop/page.tsx";
 import ProductDetailPage from "./pages/shop/[id]/page.tsx";
 import CheckoutPage from "./pages/checkout/page.tsx";
+import CheckoutConfirmPage from "./pages/checkout/confirm/page.tsx";
 import CustomOrderPage from "./pages/custom-order/page.tsx";
 import MeasurementsPage from "./pages/measurements/page.tsx";
 import OrderTrackingPage from "./pages/orders/[id]/page.tsx";
@@ -78,6 +79,7 @@ export default function App() {
 
           {/* ── Checkout — guests and signed-in users both allowed ── */}
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/confirm" element={<CheckoutConfirmPage />} />
 
           {/* ── Admin auth (public — no guard) ── */}
           <Route path="/admin/login" element={<AdminLoginPage />} />

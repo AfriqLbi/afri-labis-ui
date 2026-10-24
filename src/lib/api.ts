@@ -207,6 +207,17 @@ export type ApiOrder = {
   updatedAt: string;
 };
 
+/** Minimal order status returned by GET /orders/reference/:ref (public). */
+export type OrderReferenceStatus = {
+  _id: string;
+  orderNumber: string;
+  status: ApiOrder["status"];
+  customerEmail: string | null;
+  customerName: string | null;
+  paymentProvider: "paystack" | "flutterwave" | "stripe";
+  checkoutUrl: string | null;
+};
+
 export type MeasurementField = { key: string; label: string; value: number };
 
 export type ApiMeasurementProfile = {
@@ -647,6 +658,14 @@ export const orders = {
   },
   get(id: string) {
     return request<ApiOrder>("GET", `/orders/${id}`);
+  },
+  getByReference(ref: string) {
+    return request<OrderReferenceStatus>(
+      "GET",
+      `/orders/reference/${encodeURIComponent(ref)}`,
+      undefined,
+      { context: "none" },
+    );
   },
   pay(
     id: string,

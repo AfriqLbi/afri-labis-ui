@@ -3,6 +3,7 @@
  * Keeps page components clean — one import, one hook call.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import {
   catalog,
   orders,
@@ -66,6 +67,40 @@ export function useOrder(id: string) {
     staleTime: 30_000,
     meta: { persist: false },
     enabled: !!id,
+  });
+}
+
+// Statuses that should stop polling once observed on the confirm page.
+const ORDER_STATUS_TERMINAL = new Set([
+  "paid",
+  "failed",
+  "awaiting_shipping_quote",
+  "cancelled",
+  "fulfilled",
+  "refunded",
+  "abandoned",
+]);
+
+/**
+ * Used by the checkout confirmation page. Polls the public reference-lookup
+ * endpoint until the order reaches a terminal status (payment confirmed by
+ * the webhook) or ~45s elapse. Returns minimal status data only.
+ */
+export function useOrderByReference(ref: string | null) {
+  const startRef = useRef(Date.now());
+  return useQuery({
+    queryKey: ["order-by-ref", ref],
+    queryFn: () => orders.getByReference(ref!),
+    enabled: !!ref,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status && ORDER_STATUS_TERMINAL.has(status)) return false;
+      if (Date.now() - startRef.current > 45_000) return false;
+      return 2500;
+    },
+    staleTime: 0,
+    retry: 1,
+    meta: { persist: false },
   });
 }
 

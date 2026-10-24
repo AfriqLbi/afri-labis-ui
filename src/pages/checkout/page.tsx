@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronRight,
   Check,
   ArrowLeft,
-  ExternalLink,
   Clock,
   Truck,
   MessageCircle,
@@ -130,12 +129,9 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<Step>("contact");
   const [submitting, setSubmitting] = useState(false);
 
-  const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
-  const [confirmedOrderNumber, setConfirmedOrderNumber] = useState<
-    string | null
-  >(null);
-  const [confirmedIsQuote, setConfirmedIsQuote] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  // Set once an order has been placed so the empty-cart guard doesn't flash
+  // while we redirect/navigate away to the gateway or the confirm page.
+  const [placed, setPlaced] = useState(false);
 
   const [contact, setContact] = useState<ContactInfo>({
     firstName: user?.name.split(" ")[0] ?? "",
@@ -202,7 +198,7 @@ export default function CheckoutPage() {
 
   // ── Empty cart guard ───────────────────────────────────────────────────────
 
-  if (!cartLoading && items.length === 0 && step !== "confirmation") {
+  if (!cartLoading && items.length === 0 && !placed) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -269,29 +265,32 @@ export default function CheckoutPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const raw = result as any;
       const url = raw.checkoutUrl ?? raw.data?.checkoutUrl ?? null;
-      const orderId = raw.order?._id ?? raw._id ?? "";
-      const orderNumber = raw.order?.orderNumber ?? raw.orderNumber ?? "";
       const orderStatus = raw.order?.status ?? raw.status ?? "";
-
+      const paymentRef: string | null = raw.paymentReference ?? null;
       const isQuote = orderStatus === "awaiting_shipping_quote";
 
-      setConfirmedOrderId(orderId);
-      setConfirmedOrderNumber(orderNumber);
-      setConfirmedIsQuote(isQuote);
-      setCheckoutUrl(url);
+      setPlaced(true);
       clearCart();
-      setStep("confirmation");
 
       if (isQuote) {
         toast.success(
           "Order placed! We'll email you a shipping quote within 24 hours.",
         );
-      } else {
+        navigate(
+          `/checkout/confirm?ref=${encodeURIComponent(paymentRef ?? "")}`,
+        );
+      } else if (url) {
         toast.success("Order created! Redirecting to payment…");
-        if (url)
-          setTimeout(() => {
-            window.location.href = url;
-          }, 1200);
+        // Head straight to the hosted gateway — the confirmation page is
+        // only shown after the customer pays and is redirected back here.
+        window.location.href = url;
+      } else {
+        // Gateway session couldn't be created — send them to the confirm page
+        // where they can retry or track the order.
+        toast.success("Order created!");
+        navigate(
+          `/checkout/confirm?ref=${encodeURIComponent(paymentRef ?? "")}`,
+        );
       }
     } catch (err) {
       toast.error(
@@ -311,358 +310,311 @@ export default function CheckoutPage() {
       <PageMeta title="Checkout" noIndex={true} />
       <Header />
       <div className="pt-16.25">
-        {step === "confirmation" ? (
-          <Confirmation
-            contact={contact}
-            orderId={confirmedOrderId}
-            orderNumber={confirmedOrderNumber}
-            checkoutUrl={checkoutUrl}
-            isQuote={confirmedIsQuote}
-          />
-        ) : (
-          <div className="max-w-7xl mx-auto px-6 py-12">
-            <div className="grid md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_420px] gap-8 lg:gap-16">
-              {/* Left — form */}
-              <div>
-                <button
-                  onClick={() => navigate("/shop")}
-                  className="flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase text-muted-foreground hover:text-primary transition-colors mb-8 cursor-pointer"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  <ArrowLeft size={12} /> Back to Shop
-                </button>
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_420px] gap-8 lg:gap-16">
+            {/* Left — form */}
+            <div>
+              <button
+                onClick={() => navigate("/shop")}
+                className="flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase text-muted-foreground hover:text-primary transition-colors mb-8 cursor-pointer"
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                <ArrowLeft size={12} /> Back to Shop
+              </button>
 
-                <p
-                  className="text-3xl font-bold text-primary tracking-[0.3em] mb-10"
-                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                >
-                  LABI
-                </p>
+              <p
+                className="text-3xl font-bold text-primary tracking-[0.3em] mb-10"
+                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              >
+                LABI
+              </p>
 
-                {/* Step indicators */}
-                <div className="flex items-center gap-0 mb-10">
-                  {STEPS.map((s, i) => {
-                    const done = i < currentStepIdx;
-                    const active = s.id === step;
-                    return (
-                      <div key={s.id} className="flex items-center">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold transition-all ${done || active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                          >
-                            {done ? <Check size={10} /> : i + 1}
-                          </div>
-                          <span
-                            className={`text-[10px] tracking-[0.2em] uppercase hidden sm:block ${active ? "text-foreground" : "text-muted-foreground"}`}
-                            style={{ fontFamily: "'Montserrat', sans-serif" }}
-                          >
-                            {s.label}
-                          </span>
+              {/* Step indicators */}
+              <div className="flex items-center gap-0 mb-10">
+                {STEPS.map((s, i) => {
+                  const done = i < currentStepIdx;
+                  const active = s.id === step;
+                  return (
+                    <div key={s.id} className="flex items-center">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold transition-all ${done || active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                        >
+                          {done ? <Check size={10} /> : i + 1}
                         </div>
-                        {i < STEPS.length - 1 && (
-                          <ChevronRight
-                            size={14}
-                            className="text-border mx-3"
-                          />
-                        )}
+                        <span
+                          className={`text-[10px] tracking-[0.2em] uppercase hidden sm:block ${active ? "text-foreground" : "text-muted-foreground"}`}
+                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                        >
+                          {s.label}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
+                      {i < STEPS.length - 1 && (
+                        <ChevronRight size={14} className="text-border mx-3" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
-                <AnimatePresence mode="wait">
-                  {/* ── Contact ── */}
-                  {step === "contact" && (
-                    <StepPanel key="contact">
-                      <StepTitle>Contact Information</StepTitle>
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          setStep("shipping");
-                        }}
-                        className="space-y-5"
-                      >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <Field label="First Name" required>
-                            <input
-                              required
-                              value={contact.firstName}
-                              onChange={(e) =>
-                                setContact({
-                                  ...contact,
-                                  firstName: e.target.value,
-                                })
-                              }
-                              placeholder="Amara"
-                              className="checkout-input"
-                            />
-                          </Field>
-                          <Field label="Last Name" required>
-                            <input
-                              required
-                              value={contact.lastName}
-                              onChange={(e) =>
-                                setContact({
-                                  ...contact,
-                                  lastName: e.target.value,
-                                })
-                              }
-                              placeholder="Okafor"
-                              className="checkout-input"
-                            />
-                          </Field>
-                        </div>
-                        <Field label="Email Address" required>
+              <AnimatePresence mode="wait">
+                {/* ── Contact ── */}
+                {step === "contact" && (
+                  <StepPanel key="contact">
+                    <StepTitle>Contact Information</StepTitle>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setStep("shipping");
+                      }}
+                      className="space-y-5"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Field label="First Name" required>
                           <input
-                            type="email"
                             required
-                            value={contact.email}
+                            value={contact.firstName}
                             onChange={(e) =>
-                              setContact({ ...contact, email: e.target.value })
+                              setContact({
+                                ...contact,
+                                firstName: e.target.value,
+                              })
                             }
-                            placeholder="amara@email.com"
+                            placeholder="Amara"
                             className="checkout-input"
                           />
                         </Field>
-                        <Field label="Phone Number" required>
+                        <Field label="Last Name" required>
                           <input
                             required
-                            value={contact.phone}
+                            value={contact.lastName}
                             onChange={(e) =>
-                              setContact({ ...contact, phone: e.target.value })
+                              setContact({
+                                ...contact,
+                                lastName: e.target.value,
+                              })
                             }
-                            placeholder="+234 800 000 0000"
+                            placeholder="Okafor"
                             className="checkout-input"
                           />
                         </Field>
-                        <NextBtn>Continue to Shipping</NextBtn>
-                      </form>
-                    </StepPanel>
-                  )}
+                      </div>
+                      <Field label="Email Address" required>
+                        <input
+                          type="email"
+                          required
+                          value={contact.email}
+                          onChange={(e) =>
+                            setContact({ ...contact, email: e.target.value })
+                          }
+                          placeholder="amara@email.com"
+                          className="checkout-input"
+                        />
+                      </Field>
+                      <Field label="Phone Number" required>
+                        <input
+                          required
+                          value={contact.phone}
+                          onChange={(e) =>
+                            setContact({ ...contact, phone: e.target.value })
+                          }
+                          placeholder="+234 800 000 0000"
+                          className="checkout-input"
+                        />
+                      </Field>
+                      <NextBtn>Continue to Shipping</NextBtn>
+                    </form>
+                  </StepPanel>
+                )}
 
-                  {/* ── Shipping address ── */}
-                  {step === "shipping" && (
-                    <StepPanel key="shipping">
-                      <StepTitle>Shipping Address</StepTitle>
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          handleShippingNext();
-                        }}
-                        className="space-y-5"
-                      >
-                        <Field label="Street Address" required>
+                {/* ── Shipping address ── */}
+                {step === "shipping" && (
+                  <StepPanel key="shipping">
+                    <StepTitle>Shipping Address</StepTitle>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleShippingNext();
+                      }}
+                      className="space-y-5"
+                    >
+                      <Field label="Street Address" required>
+                        <input
+                          required
+                          value={shipping.address}
+                          onChange={(e) =>
+                            setShipping({
+                              ...shipping,
+                              address: e.target.value,
+                            })
+                          }
+                          placeholder="12 Bourdillon Road"
+                          className="checkout-input"
+                        />
+                      </Field>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Field label="City" required>
                           <input
                             required
-                            value={shipping.address}
+                            value={shipping.city}
                             onChange={(e) =>
                               setShipping({
                                 ...shipping,
-                                address: e.target.value,
+                                city: e.target.value,
                               })
                             }
-                            placeholder="12 Bourdillon Road"
+                            placeholder="Lagos"
                             className="checkout-input"
                           />
                         </Field>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <Field label="City" required>
-                            <input
+                        <Field label="State / Region" required>
+                          {shipping.country.toLowerCase() === "nigeria" ? (
+                            <select
                               required
-                              value={shipping.city}
+                              value={shipping.state}
                               onChange={(e) =>
                                 setShipping({
                                   ...shipping,
-                                  city: e.target.value,
+                                  state: e.target.value,
                                 })
                               }
-                              placeholder="Lagos"
                               className="checkout-input"
-                            />
-                          </Field>
-                          <Field label="State / Region" required>
-                            {shipping.country.toLowerCase() === "nigeria" ? (
-                              <select
-                                required
-                                value={shipping.state}
-                                onChange={(e) =>
-                                  setShipping({
-                                    ...shipping,
-                                    state: e.target.value,
-                                  })
-                                }
-                                className="checkout-input"
-                              >
-                                {NIGERIAN_STATES.map((s) => (
-                                  <option key={s} value={s}>
-                                    {s}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <input
-                                value={shipping.state}
-                                onChange={(e) =>
-                                  setShipping({
-                                    ...shipping,
-                                    state: e.target.value,
-                                  })
-                                }
-                                placeholder="Province / State"
-                                className="checkout-input"
-                              />
-                            )}
-                          </Field>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <Field label="Country" required>
+                            >
+                              {NIGERIAN_STATES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
                             <input
-                              required
-                              value={shipping.country}
+                              value={shipping.state}
                               onChange={(e) =>
                                 setShipping({
                                   ...shipping,
-                                  state: "",
-                                  country: e.target.value,
+                                  state: e.target.value,
                                 })
                               }
-                              placeholder="Nigeria"
+                              placeholder="Province / State"
                               className="checkout-input"
                             />
-                          </Field>
-                          <Field label="Postal Code">
-                            <input
-                              value={shipping.zip}
-                              onChange={(e) =>
-                                setShipping({
-                                  ...shipping,
-                                  zip: e.target.value,
-                                })
-                              }
-                              placeholder="100001"
-                              className="checkout-input"
-                            />
-                          </Field>
-                        </div>
-                        <div className="flex gap-3">
-                          <BackBtn onClick={() => setStep("contact")} />
-                          <NextBtn className="flex-[2]">
-                            Continue to Payment
-                          </NextBtn>
-                        </div>
-                      </form>
-                    </StepPanel>
-                  )}
+                          )}
+                        </Field>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Field label="Country" required>
+                          <input
+                            required
+                            value={shipping.country}
+                            onChange={(e) =>
+                              setShipping({
+                                ...shipping,
+                                state: "",
+                                country: e.target.value,
+                              })
+                            }
+                            placeholder="Nigeria"
+                            className="checkout-input"
+                          />
+                        </Field>
+                        <Field label="Postal Code">
+                          <input
+                            value={shipping.zip}
+                            onChange={(e) =>
+                              setShipping({
+                                ...shipping,
+                                zip: e.target.value,
+                              })
+                            }
+                            placeholder="100001"
+                            className="checkout-input"
+                          />
+                        </Field>
+                      </div>
+                      <div className="flex gap-3">
+                        <BackBtn onClick={() => setStep("contact")} />
+                        <NextBtn className="flex-[2]">
+                          Continue to Payment
+                        </NextBtn>
+                      </div>
+                    </form>
+                  </StepPanel>
+                )}
 
-                  {/* ── Payment ── */}
-                  {step === "payment" && (
-                    <StepPanel key="payment">
-                      <StepTitle>Payment</StepTitle>
-                      <form onSubmit={handlePlaceOrder} className="space-y-6">
-                        {/* Shipping estimate banner */}
-                        <ShippingEstimateBanner
-                          isLoading={estLoading}
-                          estimate={shippingEst ?? null}
-                          country={shipping.country}
-                          formatAmount={formatAmount}
-                        />
+                {/* ── Payment ── */}
+                {step === "payment" && (
+                  <StepPanel key="payment">
+                    <StepTitle>Payment</StepTitle>
+                    <form onSubmit={handlePlaceOrder} className="space-y-6">
+                      {/* Shipping estimate banner */}
+                      <ShippingEstimateBanner
+                        isLoading={estLoading}
+                        estimate={shippingEst ?? null}
+                        country={shipping.country}
+                        formatAmount={formatAmount}
+                      />
 
-                        {/* Gateway notice */}
+                      {/* Gateway notice */}
+                      <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
+                        <div className="w-2 h-2 bg-primary mt-1 shrink-0" />
+                        <p
+                          className="text-xs text-muted-foreground leading-relaxed"
+                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                        >
+                          {isQuoteZone
+                            ? "No payment is taken now. Once we set your shipping fee, you'll receive an email with a payment link."
+                            : "You will be redirected to a secure payment page to complete your purchase."}
+                        </p>
+                      </div>
+
+                      {/* FX lock banner */}
+                      {!isNgn && !isQuoteZone && (
                         <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
-                          <div className="w-2 h-2 bg-primary mt-1 shrink-0" />
+                          <Clock
+                            size={14}
+                            className="text-primary mt-0.5 shrink-0"
+                          />
                           <p
                             className="text-xs text-muted-foreground leading-relaxed"
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
                           >
-                            {isQuoteZone
-                              ? "No payment is taken now. Once we set your shipping fee, you'll receive an email with a payment link."
-                              : "You will be redirected to a secure payment page to complete your purchase."}
+                            Your price in{" "}
+                            <span className="text-primary font-semibold">
+                              {activeCurrency}
+                            </span>{" "}
+                            is locked for 30 minutes from when your order is
+                            created.
                           </p>
                         </div>
+                      )}
 
-                        {/* FX lock banner */}
-                        {!isNgn && !isQuoteZone && (
-                          <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
-                            <Clock
-                              size={14}
-                              className="text-primary mt-0.5 shrink-0"
-                            />
-                            <p
-                              className="text-xs text-muted-foreground leading-relaxed"
-                              style={{ fontFamily: "'Montserrat', sans-serif" }}
-                            >
-                              Your price in{" "}
-                              <span className="text-primary font-semibold">
-                                {activeCurrency}
-                              </span>{" "}
-                              is locked for 30 minutes from when your order is
-                              created.
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Provider selection — hidden for quote orders (no payment now) */}
-                        {!isQuoteZone && (
-                          <Field label="Payment Provider">
-                            <div className="space-y-3">
-                              {isNgn ? (
-                                [
-                                  {
-                                    id: "paystack" as const,
-                                    label: "Paystack",
-                                    sub: "Cards, Bank Transfer, USSD",
-                                  },
-                                  {
-                                    id: "flutterwave" as const,
-                                    label: "Flutterwave",
-                                    sub: "Cards, Mobile Money, Bank Transfer",
-                                  },
-                                ].map((opt) => (
-                                  <label
-                                    key={opt.id}
-                                    className={`flex items-center gap-4 px-4 py-4 border cursor-pointer transition-all ${paymentProvider === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
+                      {/* Provider selection — hidden for quote orders (no payment now) */}
+                      {!isQuoteZone && (
+                        <Field label="Payment Provider">
+                          <div className="space-y-3">
+                            {isNgn ? (
+                              [
+                                {
+                                  id: "paystack" as const,
+                                  label: "Paystack",
+                                  sub: "Cards, Bank Transfer, USSD",
+                                },
+                                {
+                                  id: "flutterwave" as const,
+                                  label: "Flutterwave",
+                                  sub: "Cards, Mobile Money, Bank Transfer",
+                                },
+                              ].map((opt) => (
+                                <label
+                                  key={opt.id}
+                                  className={`flex items-center gap-4 px-4 py-4 border cursor-pointer transition-all ${paymentProvider === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
+                                >
+                                  <div
+                                    className={`w-4 h-4 border flex items-center justify-center shrink-0 ${paymentProvider === opt.id ? "border-primary" : "border-border"}`}
                                   >
-                                    <div
-                                      className={`w-4 h-4 border flex items-center justify-center shrink-0 ${paymentProvider === opt.id ? "border-primary" : "border-border"}`}
-                                    >
-                                      {paymentProvider === opt.id && (
-                                        <div className="w-2 h-2 bg-primary" />
-                                      )}
-                                    </div>
-                                    <div>
-                                      <p
-                                        className="text-xs font-semibold text-foreground"
-                                        style={{
-                                          fontFamily:
-                                            "'Montserrat', sans-serif",
-                                        }}
-                                      >
-                                        {opt.label}
-                                      </p>
-                                      <p
-                                        className="text-[10px] text-muted-foreground"
-                                        style={{
-                                          fontFamily:
-                                            "'Montserrat', sans-serif",
-                                        }}
-                                      >
-                                        {opt.sub}
-                                      </p>
-                                    </div>
-                                    <input
-                                      type="radio"
-                                      className="hidden"
-                                      checked={paymentProvider === opt.id}
-                                      onChange={() =>
-                                        setPaymentProvider(opt.id)
-                                      }
-                                    />
-                                  </label>
-                                ))
-                              ) : (
-                                <div className="px-4 py-4 border border-primary/30 bg-primary/5 flex items-center gap-3">
-                                  <div className="w-4 h-4 border border-primary flex items-center justify-center shrink-0">
-                                    <div className="w-2 h-2 bg-primary" />
+                                    {paymentProvider === opt.id && (
+                                      <div className="w-2 h-2 bg-primary" />
+                                    )}
                                   </div>
                                   <div>
                                     <p
@@ -671,7 +623,7 @@ export default function CheckoutPage() {
                                         fontFamily: "'Montserrat', sans-serif",
                                       }}
                                     >
-                                      {stripeEnabled ? "Stripe" : "Flutterwave"}
+                                      {opt.label}
                                     </p>
                                     <p
                                       className="text-[10px] text-muted-foreground"
@@ -679,64 +631,94 @@ export default function CheckoutPage() {
                                         fontFamily: "'Montserrat', sans-serif",
                                       }}
                                     >
-                                      {stripeEnabled
-                                        ? `International cards · ${activeCurrency}`
-                                        : `Multi-currency · ${activeCurrency}`}
+                                      {opt.sub}
                                     </p>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          </Field>
-                        )}
-
-                        <div className="flex gap-3 pt-2">
-                          <BackBtn onClick={() => setStep("shipping")} />
-                          <button
-                            type="submit"
-                            disabled={submitting || isNoZone}
-                            className="flex-[2] bg-primary text-primary-foreground py-4 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
-                            style={{ fontFamily: "'Montserrat', sans-serif" }}
-                          >
-                            {submitting ? (
-                              <>
-                                <Spinner className="size-4" /> Processing…
-                              </>
-                            ) : isQuoteZone ? (
-                              <>Request Shipping Quote →</>
+                                  <input
+                                    type="radio"
+                                    className="hidden"
+                                    checked={paymentProvider === opt.id}
+                                    onChange={() => setPaymentProvider(opt.id)}
+                                  />
+                                </label>
+                              ))
                             ) : (
-                              <>
-                                {shippingFeeNaira != null
-                                  ? `Pay ${formatAmount(total * 100)}`
-                                  : "Place Order"}{" "}
-                                →
-                              </>
+                              <div className="px-4 py-4 border border-primary/30 bg-primary/5 flex items-center gap-3">
+                                <div className="w-4 h-4 border border-primary flex items-center justify-center shrink-0">
+                                  <div className="w-2 h-2 bg-primary" />
+                                </div>
+                                <div>
+                                  <p
+                                    className="text-xs font-semibold text-foreground"
+                                    style={{
+                                      fontFamily: "'Montserrat', sans-serif",
+                                    }}
+                                  >
+                                    {stripeEnabled ? "Stripe" : "Flutterwave"}
+                                  </p>
+                                  <p
+                                    className="text-[10px] text-muted-foreground"
+                                    style={{
+                                      fontFamily: "'Montserrat', sans-serif",
+                                    }}
+                                  >
+                                    {stripeEnabled
+                                      ? `International cards · ${activeCurrency}`
+                                      : `Multi-currency · ${activeCurrency}`}
+                                  </p>
+                                </div>
+                              </div>
                             )}
-                          </button>
-                        </div>
-                      </form>
-                    </StepPanel>
-                  )}
-                </AnimatePresence>
-              </div>
+                          </div>
+                        </Field>
+                      )}
 
-              {/* Right — order summary */}
-              <div className="order-first md:order-last">
-                <OrderSummary
-                  lines={serverCart?.lines ?? []}
-                  subtotal={subtotal}
-                  shippingFeeNaira={shippingFeeNaira}
-                  isQuoteZone={isQuoteZone}
-                  estLoading={estLoading && step === "payment"}
-                  total={total}
-                  formatAmount={formatAmount}
-                />
-              </div>
+                      <div className="flex gap-3 pt-2">
+                        <BackBtn onClick={() => setStep("shipping")} />
+                        <button
+                          type="submit"
+                          disabled={submitting || isNoZone}
+                          className="flex-[2] bg-primary text-primary-foreground py-4 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                        >
+                          {submitting ? (
+                            <>
+                              <Spinner className="size-4" /> Processing…
+                            </>
+                          ) : isQuoteZone ? (
+                            <>Request Shipping Quote →</>
+                          ) : (
+                            <>
+                              {shippingFeeNaira != null
+                                ? `Pay ${formatAmount(total * 100)}`
+                                : "Place Order"}{" "}
+                              →
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </StepPanel>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Right — order summary */}
+            <div className="order-first md:order-last">
+              <OrderSummary
+                lines={serverCart?.lines ?? []}
+                subtotal={subtotal}
+                shippingFeeNaira={shippingFeeNaira}
+                isQuoteZone={isQuoteZone}
+                estLoading={estLoading && step === "payment"}
+                total={total}
+                formatAmount={formatAmount}
+              />
             </div>
           </div>
-        )}
+        </div>
       </div>
-      {step !== "confirmation" && <Footer />}
+      <Footer />
     </div>
   );
 }
@@ -891,118 +873,6 @@ function ShippingEstimateBanner({
   }
 
   return null;
-}
-
-// ── Confirmation screen ────────────────────────────────────────────────────────
-
-function Confirmation({
-  contact,
-  orderId,
-  orderNumber,
-  checkoutUrl,
-  isQuote,
-}: {
-  contact: ContactInfo;
-  orderId: string | null;
-  orderNumber: string | null;
-  checkoutUrl: string | null;
-  isQuote: boolean;
-}) {
-  const waLink = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi LABI, I have a question about my order ${orderNumber ?? ""}`)}`;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, ease: "easeOut" as const }}
-      className="min-h-[80vh] flex items-center justify-center px-6 py-24"
-    >
-      <div className="max-w-lg text-center">
-        <div className="w-16 h-16 bg-primary flex items-center justify-center mx-auto mb-8">
-          <Check size={24} className="text-primary-foreground" />
-        </div>
-        <p
-          className="text-xs tracking-[0.3em] uppercase text-primary mb-4"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-          {isQuote ? "Quote Requested" : "Order Created"}
-        </p>
-        <h1
-          className="text-5xl font-light text-foreground mb-6"
-          style={{ fontFamily: "'Cormorant Garamond', serif" }}
-        >
-          {contact.firstName
-            ? `Thank you, ${contact.firstName}!`
-            : "Order confirmed!"}
-        </h1>
-        <p
-          className="text-muted-foreground text-lg font-light leading-relaxed mb-4"
-          style={{ fontFamily: "'Cormorant Garamond', serif" }}
-        >
-          {isQuote
-            ? "We've received your order. An admin will set the shipping fee and email you a payment link — usually within 24 hours."
-            : checkoutUrl
-              ? "Redirecting you to the secure payment page now…"
-              : "Your order has been received and is awaiting payment confirmation."}
-        </p>
-        {contact.email && (
-          <p
-            className="text-xs tracking-wide text-muted-foreground mb-3"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Updates to <span className="text-primary">{contact.email}</span>
-          </p>
-        )}
-        {orderNumber && (
-          <p
-            className="text-xs tracking-wide text-muted-foreground mb-8"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Order:{" "}
-            <span className="text-primary font-semibold">{orderNumber}</span>
-          </p>
-        )}
-        <div className="w-12 h-[1px] bg-primary mx-auto mb-8" />
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {checkoutUrl && !isQuote && (
-            <a
-              href={checkoutUrl}
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              <ExternalLink size={13} /> Pay Now
-            </a>
-          )}
-          {orderId && (
-            <Link
-              to={`/orders/${orderId}`}
-              className="inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              {isQuote ? "View Order Status" : "Track Order"}
-            </Link>
-          )}
-          {isQuote && (
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 border border-[#25D366] text-[#25D366] px-8 py-4 text-xs tracking-[0.2em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              <MessageCircle size={13} /> WhatsApp Us
-            </a>
-          )}
-          <Link
-            to="/shop"
-            className="inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-          >
-            Continue Shopping
-          </Link>
-        </div>
-      </div>
-    </motion.div>
-  );
 }
 
 // ── Order summary ──────────────────────────────────────────────────────────────
