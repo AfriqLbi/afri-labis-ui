@@ -53,18 +53,23 @@ export default function AdminProductionPage() {
 
   // ── Catalog orders (paid / in-production) ──────────────────────────────────
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
-    queryKey: ["admin-orders-production"],
+    // Key MUST match what useAdminUpdateProductionStage invalidates: ["admin-orders"]
+    queryKey: ["admin-orders", { status: "paid", limit: 100 }],
     queryFn: () => adminOrdersApi.list({ status: "paid", limit: 100 }),
-    staleTime: 20_000,
+    staleTime: 0,
+    refetchInterval: 15_000,
     meta: { persist: false },
   });
 
   // ── Custom orders (in_production) ─────────────────────────────────────────
   const { data: customOrdersData, isLoading: customLoading } = useQuery({
+    // Key MUST match what useAdminUpdateCustomOrderProductionStage invalidates:
+    // ["admin-custom-orders-production"]
     queryKey: ["admin-custom-orders-production"],
     queryFn: () =>
       adminCustomOrdersApi.list({ status: "in_production", limit: 100 }),
-    staleTime: 20_000,
+    staleTime: 0,
+    refetchInterval: 15_000,
     meta: { persist: false },
   });
 

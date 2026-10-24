@@ -69,7 +69,19 @@ export function useOrder(id: string, linkToken?: string) {
     staleTime: 0,
     // Poll every 20s on the order detail / tracking page so stage changes
     // (set by admin) appear quickly for both guests and logged-in customers.
-    refetchInterval: 20_000,
+    // Stops polling once the order reaches a terminal state.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      const TERMINAL = new Set([
+        "fulfilled",
+        "cancelled",
+        "refunded",
+        "failed",
+        "abandoned",
+      ]);
+      if (status && TERMINAL.has(status)) return false;
+      return 20_000;
+    },
     meta: { persist: false },
     enabled: !!id,
   });
@@ -371,7 +383,11 @@ export function useAdminUpdateProductionStage() {
       note?: string;
     }) => adminOrders.updateProductionStage(id, stage, note),
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      // Force-refetch all admin-orders queries (includes the production queue)
+      qc.invalidateQueries({
+        queryKey: ["admin-orders"],
+        refetchType: "all",
+      });
       // Force refetch of the specific order's production history immediately
       qc.invalidateQueries({
         queryKey: ["production-history", variables.id],
