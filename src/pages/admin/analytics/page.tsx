@@ -175,7 +175,7 @@ export default function AdminAnalyticsPage() {
                   tick={{ fill: "#888", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v: number) => `₦${(v / 1000).toFixed(0)}k`}
+                  tickFormatter={(v: number) => `₦${(v).toFixed(0)}k`}
                 />
                 <Tooltip
                   content={(props) => <RevenueTooltip {...props} />}
