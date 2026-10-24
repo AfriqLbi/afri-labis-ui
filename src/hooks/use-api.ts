@@ -108,7 +108,7 @@ export function useOrderProductionHistory(orderId: string) {
   return useQuery({
     queryKey: ["production-history", orderId],
     queryFn: () => orders.getProductionHistory(orderId),
-    staleTime: 30_000,
+    staleTime: 0, // always considered stale so invalidation always re-fetches
     enabled: !!orderId,
   });
 }
@@ -171,7 +171,7 @@ export function useAdminCustomOrders(
   return useQuery({
     queryKey: ["admin-custom-orders", params],
     queryFn: () => adminCustomOrders.list(params),
-    staleTime: 20_000,
+    staleTime: 0, // always refetch when invalidated; mutations happen frequently here
     meta: { persist: false },
   });
 }
@@ -362,9 +362,18 @@ export function useAdminUpdateProductionStage() {
       stage: string;
       note?: string;
     }) => adminOrders.updateProductionStage(id, stage, note),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["admin-orders"] });
-      qc.invalidateQueries({ queryKey: ["production-history"] });
+      // Force refetch of the specific order's production history immediately
+      qc.invalidateQueries({
+        queryKey: ["production-history", variables.id],
+        refetchType: "all",
+      });
+      // Also invalidate the broad key in case other components watch it
+      qc.invalidateQueries({
+        queryKey: ["production-history"],
+        refetchType: "all",
+      });
     },
   });
 }
@@ -379,8 +388,12 @@ export function useAdminSetCustomOrderQuote() {
       id: string;
       dto: Parameters<typeof adminCustomOrders.setQuote>[1];
     }) => adminCustomOrders.setQuote(id, dto),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["admin-custom-orders"],
+        refetchType: "all",
+      });
+    },
   });
 }
 
@@ -388,8 +401,19 @@ export function useAdminMoveCustomOrderToProduction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => adminCustomOrders.moveToProduction(id),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["admin-custom-orders"] }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["admin-custom-orders"] });
+      // Moving to production initialises a new production stage record,
+      // so force-refetch the history for this order immediately.
+      qc.invalidateQueries({
+        queryKey: ["production-history", id],
+        refetchType: "all",
+      });
+      qc.invalidateQueries({
+        queryKey: ["production-history"],
+        refetchType: "all",
+      });
+    },
   });
 }
 
@@ -405,10 +429,18 @@ export function useAdminUpdateCustomOrderProductionStage() {
       stage: "cutting" | "sewing" | "quality_check" | "ready" | "delivered";
       note?: string;
     }) => adminCustomOrders.updateProductionStage(id, stage, note),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["admin-custom-orders"] });
       qc.invalidateQueries({ queryKey: ["admin-custom-orders-production"] });
-      qc.invalidateQueries({ queryKey: ["production-history"] });
+      // Force-refetch the specific order's production history immediately
+      qc.invalidateQueries({
+        queryKey: ["production-history", variables.id],
+        refetchType: "all",
+      });
+      qc.invalidateQueries({
+        queryKey: ["production-history"],
+        refetchType: "all",
+      });
     },
   });
 }
