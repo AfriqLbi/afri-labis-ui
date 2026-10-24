@@ -1047,26 +1047,31 @@ export const adminAnalytics = {
     const raw = await request<{
       revenueBase: number;
       orderCount: number;
+      unitsSold: number;
       averageOrderBase: number;
       pendingCount: number;
       lowStockCount: number;
     }>("GET", "/admin/analytics/metrics");
+    // revenueBase / averageOrderBase are already in NGN naira — no unit conversion needed.
     return {
-      totalRevenue: (raw.revenueBase ?? 0) / 100,
+      totalRevenue: raw.revenueBase ?? 0,
       totalOrders: raw.orderCount ?? 0,
-      avgOrderValue: (raw.averageOrderBase ?? 0) / 100,
+      unitsSold: raw.unitsSold ?? 0,
+      avgOrderValue: raw.averageOrderBase ?? 0,
       pendingOrders: raw.pendingCount ?? 0,
       lowStockCount: raw.lowStockCount ?? 0,
     };
   },
   async revenueSeries(months = 6) {
     const rows = await request<
-      { month: string; revenue: number; orders: number }[]
+      { month: string; year: number; revenue: number; orders: number }[]
     >("GET", `/admin/analytics/revenue-series?months=${months}`);
-    return rows.map((r) => ({ ...r, revenue: (r.revenue ?? 0) / 100 }));
+    // revenue is already in NGN naira — no unit conversion needed.
+    return rows;
   },
   categoryMix() {
-    return request<{ category: string; revenue: number; percentage: number }[]>(
+    // Backend returns { name: string; value: number } where value is a percentage (0–100).
+    return request<{ name: string; value: number }[]>(
       "GET",
       "/admin/analytics/category-mix",
     );
@@ -1075,6 +1080,18 @@ export const adminAnalytics = {
     return request<
       { productId: string; title: string; revenue: number; units: number }[]
     >("GET", "/admin/analytics/top-products");
+  },
+  lowStock() {
+    return request<
+      {
+        _id: string;
+        title: string;
+        sku: string;
+        stock: number;
+        reserved: number;
+        categoryName: string;
+      }[]
+    >("GET", "/admin/analytics/low-stock");
   },
 };
 

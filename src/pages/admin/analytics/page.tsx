@@ -83,8 +83,7 @@ export default function AdminAnalyticsPage() {
   // Chart data — fall back to mock when API is unreachable
   const chartData = series ?? MONTHLY_SALES;
   const pieData =
-    catMix?.map((c) => ({ name: c.category, value: c.percentage })) ??
-    CATEGORY_REVENUE.map((c) => ({ name: c.name, value: c.value }));
+    catMix ?? CATEGORY_REVENUE.map((c) => ({ name: c.name, value: c.value }));
 
   return (
     <div className="p-8 space-y-10">
@@ -175,7 +174,13 @@ export default function AdminAnalyticsPage() {
                   tick={{ fill: "#888", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v: number) => `₦${(v).toFixed(0)}k`}
+                  tickFormatter={(v: number) =>
+                    v >= 1_000_000
+                      ? `₦${(v / 1_000_000).toFixed(1)}M`
+                      : v >= 1_000
+                        ? `₦${(v / 1_000).toFixed(0)}k`
+                        : `₦${v}`
+                  }
                 />
                 <Tooltip
                   content={(props) => <RevenueTooltip {...props} />}

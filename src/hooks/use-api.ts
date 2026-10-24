@@ -230,7 +230,7 @@ export function useAdminProducts(
 export function useAdminLowStock() {
   return useQuery({
     queryKey: ["admin-low-stock"],
-    queryFn: () => adminCatalog.lowStock(),
+    queryFn: () => adminAnalytics.lowStock(),
     staleTime: 60_000,
     meta: { persist: false },
   });

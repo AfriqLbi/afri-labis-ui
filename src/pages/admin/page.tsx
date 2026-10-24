@@ -68,7 +68,7 @@ export default function AdminOverviewPage() {
     },
     {
       label: "Avg. Order Value",
-      value: formatPrice(stats.avgOrderValue),
+      value: stats.avgOrderValue,
       icon: <Package size={18} />,
       color: "text-emerald-400",
     },
