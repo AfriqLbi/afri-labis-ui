@@ -55,7 +55,9 @@ export function useMyOrders(page = 1) {
   return useQuery({
     queryKey: ["my-orders", page],
     queryFn: () => orders.mine(page),
-    staleTime: 30_000,
+    staleTime: 0,
+    // Poll every 30s so production stage badges update without a manual refresh.
+    refetchInterval: 30_000,
     meta: { persist: false }, // personal data — never write to localStorage
   });
 }
@@ -64,7 +66,10 @@ export function useOrder(id: string, linkToken?: string) {
   return useQuery({
     queryKey: ["order", id, linkToken],
     queryFn: () => orders.get(id, linkToken),
-    staleTime: 30_000,
+    staleTime: 0,
+    // Poll every 20s on the order detail / tracking page so stage changes
+    // (set by admin) appear quickly for both guests and logged-in customers.
+    refetchInterval: 20_000,
     meta: { persist: false },
     enabled: !!id,
   });
@@ -119,7 +124,10 @@ export function useMyCustomOrders(page = 1) {
   return useQuery({
     queryKey: ["my-custom-orders", page],
     queryFn: () => customOrders.mine(page),
-    staleTime: 30_000,
+    staleTime: 0,
+    // Poll every 30s so in_production status and stage changes are visible
+    // without the customer needing to refresh.
+    refetchInterval: 30_000,
   });
 }
 
