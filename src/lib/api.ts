@@ -656,8 +656,12 @@ export const orders = {
       `/orders/mine?page=${page}&limit=${limit}`,
     );
   },
-  get(id: string) {
-    return request<ApiOrder>("GET", `/orders/${id}`);
+  get(id: string, linkToken?: string) {
+    const qs = linkToken ? `?token=${encodeURIComponent(linkToken)}` : "";
+    return request<ApiOrder>("GET", `/orders/${id}${qs}`, undefined, {
+      // Guests have no session — skip the 401-refresh cycle to avoid noise
+      context: linkToken ? "none" : "customer",
+    });
   },
   getByReference(ref: string) {
     return request<OrderReferenceStatus>(

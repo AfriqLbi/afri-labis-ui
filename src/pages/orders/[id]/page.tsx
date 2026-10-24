@@ -136,7 +136,12 @@ export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const linkToken = searchParams.get("token") ?? undefined;
-  const { data: order, isLoading, isError, refetch } = useOrder(id ?? "");
+  const {
+    data: order,
+    isLoading,
+    isError,
+    refetch,
+  } = useOrder(id ?? "", linkToken);
   const [requoting, setRequoting] = useState(false);
   const [paying, setPaying] = useState(false);
 

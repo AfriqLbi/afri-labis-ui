@@ -60,10 +60,10 @@ export function useMyOrders(page = 1) {
   });
 }
 
-export function useOrder(id: string) {
+export function useOrder(id: string, linkToken?: string) {
   return useQuery({
-    queryKey: ["order", id],
-    queryFn: () => orders.get(id),
+    queryKey: ["order", id, linkToken],
+    queryFn: () => orders.get(id, linkToken),
     staleTime: 30_000,
     meta: { persist: false },
     enabled: !!id,
@@ -152,6 +152,16 @@ export function useAdminOrders(
     queryFn: () => adminOrders.list(params),
     staleTime: 20_000,
     meta: { persist: false },
+  });
+}
+
+export function useAdminOrder(id: string) {
+  return useQuery({
+    queryKey: ["admin-order", id],
+    queryFn: () => adminOrders.get(id),
+    staleTime: 20_000,
+    meta: { persist: false },
+    enabled: !!id,
   });
 }
 

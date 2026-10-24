@@ -33,6 +33,7 @@ import AdminLoginPage from "./pages/admin/login/page.tsx";
 import AdminLayout from "./pages/admin/layout.tsx";
 import AdminOverviewPage from "./pages/admin/page.tsx";
 import AdminOrdersPage from "./pages/admin/orders/page.tsx";
+import AdminOrderDetailPage from "./pages/admin/orders/[id]/page.tsx";
 import AdminCustomOrdersPage from "./pages/admin/custom-orders/page.tsx";
 import AdminProductsPage from "./pages/admin/products/page.tsx";
 import AdminAnalyticsPage from "./pages/admin/analytics/page.tsx";
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminOverviewPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
+              <Route path="orders/:id" element={<AdminOrderDetailPage />} />
               <Route path="custom-orders" element={<AdminCustomOrdersPage />} />
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
