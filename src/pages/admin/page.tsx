@@ -68,7 +68,7 @@ export default function AdminOverviewPage() {
     },
     {
       label: "Avg. Order Value",
-      value: stats.avgOrderValue,
+      value: formatPrice(stats.avgOrderValue),
       icon: <Package size={18} />,
       color: "text-emerald-400",
     },
@@ -186,7 +186,7 @@ export default function AdminOverviewPage() {
                 tick={{ fill: "#888", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v: number) => `₦${(v).toFixed(0)}k`}
+                tickFormatter={(v: number) => `₦${(v / 1000).toFixed(0)}k`}
               />
               <Tooltip
                 cursor={{ fill: "rgba(255,255,255,0.04)" }}
