@@ -106,6 +106,7 @@ export default function ProductDetailPage() {
         }
         image={product.images[0]}
         type="product"
+        price={product.price}
         canonical={`https://labiafrica.com/shop/${product.slug || product._id}`}
         structuredData={{
           "@context": "https://schema.org",

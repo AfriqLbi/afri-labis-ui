@@ -29,7 +29,7 @@ export default function SwUpdatePrompt() {
   return (
     <div
       role="alert"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 bg-card border border-primary/40 shadow-lg px-5 py-3 max-w-sm w-[calc(100%-2rem)]"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-9999 flex items-center gap-3 bg-card border border-primary/40 shadow-lg px-5 py-3 max-w-sm w-[calc(100%-2rem)]"
     >
       <RefreshCw size={14} className="text-primary shrink-0" />
       <p

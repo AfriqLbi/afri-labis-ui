@@ -5,7 +5,12 @@
  *
  * Usage:
  *   <PageMeta title="Shop" description="Browse all collections." />
- *   <PageMeta title={product.title} description={product.description} image={product.images[0]} />
+ *   <PageMeta title={product.title} description={product.description} image={product.images[0]} price={product.price} />
+ *
+ * NOTE: For actual social media crawlers (WhatsApp, iMessage, Twitter/X, etc.)
+ * the OG tags are injected server-side by middleware.ts running at the Vercel
+ * edge layer. This component handles in-browser navigation (Google, real users
+ * using DevTools, etc.).
  */
 
 import { useEffect } from "react";
@@ -20,6 +25,12 @@ interface PageMetaProps {
   image?: string;
   /** "website" (default) or "product" */
   type?: "website" | "product";
+  /**
+   * Product price in full NGN naira (not kobo). Only used when type="product".
+   * Emits product:price:amount / product:price:currency meta tags for
+   * Facebook / Pinterest commerce integrations.
+   */
+  price?: number;
   /** Extra JSON-LD structured data object to inject for this page. */
   structuredData?: object;
   /** If true, page is not indexed (e.g. admin, account, checkout). */
@@ -32,6 +43,20 @@ const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image-1200x630.png`;
 const DEFAULT_DESCRIPTION =
   "LÁBí (Èwà Omoluabi) — Contemporary African fashion rooted in heritage craft. Handwoven Aṣọ-Òkè, FÌLÁ and modern African pieces made in Ilorin, Nigeria.";
 
+// ── Cloudinary OG transform (mirrors the middleware) ─────────────────────────
+// Inserts w_1200,h_630,c_fill,g_center into Cloudinary upload URLs so the
+// browser-side OG tag also gets a properly-sized image.
+const CLOUDINARY_UPLOAD_RE =
+  /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+)$/;
+
+function toOgImage(src: string): string {
+  const match = CLOUDINARY_UPLOAD_RE.exec(src);
+  if (match) {
+    return `${match[1]}w_1200,h_630,c_fill,g_center,f_jpg,q_auto/${match[2]}`;
+  }
+  return src;
+}
+
 function setMeta(name: string, content: string, prop?: boolean) {
   const attr = prop ? "property" : "name";
   let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${name}"]`);
@@ -41,6 +66,11 @@ function setMeta(name: string, content: string, prop?: boolean) {
     document.head.appendChild(el);
   }
   el.setAttribute("content", content);
+}
+
+function removeMeta(name: string, prop?: boolean) {
+  const attr = prop ? "property" : "name";
+  document.querySelector<HTMLMetaElement>(`meta[${attr}="${name}"]`)?.remove();
 }
 
 function setLink(rel: string, href: string) {
@@ -76,6 +106,7 @@ export default function PageMeta({
   canonical,
   image = DEFAULT_OG_IMAGE,
   type = "website",
+  price,
   structuredData,
   noIndex = false,
 }: PageMetaProps) {
@@ -85,6 +116,9 @@ export default function PageMeta({
       : `${SITE_NAME} — Aṣọ-Òkè & African Fashion | Ilorin, Nigeria`;
     const canonicalUrl = canonical ?? window.location.href;
     const pageId = "page-meta-ld";
+
+    // Apply Cloudinary OG transform for product images so dimensions are right
+    const ogImage = type === "product" ? toOgImage(image) : image;
 
     document.title = fullTitle;
 
@@ -98,7 +132,7 @@ export default function PageMeta({
     // Open Graph
     setMeta("og:title", fullTitle, true);
     setMeta("og:description", description, true);
-    setMeta("og:image", image, true);
+    setMeta("og:image", ogImage, true);
     setMeta("og:image:width", "1200", true);
     setMeta("og:image:height", "630", true);
     setMeta("og:image:alt", title ?? SITE_NAME, true);
@@ -106,11 +140,20 @@ export default function PageMeta({
     setMeta("og:type", type, true);
     setMeta("og:site_name", SITE_NAME, true);
 
+    // Product price meta tags (Facebook / Pinterest commerce)
+    if (type === "product" && price != null && price > 0) {
+      setMeta("product:price:amount", String(price), true);
+      setMeta("product:price:currency", "NGN", true);
+    } else {
+      removeMeta("product:price:amount", true);
+      removeMeta("product:price:currency", true);
+    }
+
     // Twitter
     setMeta("twitter:card", "summary_large_image");
     setMeta("twitter:title", fullTitle);
     setMeta("twitter:description", description);
-    setMeta("twitter:image", image);
+    setMeta("twitter:image", ogImage);
     setMeta("twitter:image:alt", title ?? SITE_NAME);
 
     // Structured data
@@ -132,9 +175,20 @@ export default function PageMeta({
       setMeta("og:image", DEFAULT_OG_IMAGE, true);
       setMeta("og:url", SITE_URL, true);
       setMeta("og:type", "website", true);
+      removeMeta("product:price:amount", true);
+      removeMeta("product:price:currency", true);
       removeStructuredData(pageId);
     };
-  }, [title, description, canonical, image, type, structuredData, noIndex]);
+  }, [
+    title,
+    description,
+    canonical,
+    image,
+    type,
+    price,
+    structuredData,
+    noIndex,
+  ]);
 
   return null;
 }
