@@ -16,7 +16,7 @@ import Footer from "../../_components/Footer.tsx";
 import PageMeta from "@/components/PageMeta.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 
-const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2348000000000";
+const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2349019825348";
 
 const FONT_SERIF = { fontFamily: "'Cormorant Garamond', serif" } as const;
 const FONT_SANS = { fontFamily: "'Montserrat', sans-serif" } as const;
@@ -115,7 +115,7 @@ function ConfirmContent({ order }: { order: OrderReferenceStatus }) {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" as const }}
-      className="max-w-lg text-center"
+      className="max-w-2xl text-center"
     >
       {/* Status icon */}
       <div
@@ -186,7 +186,7 @@ function ConfirmContent({ order }: { order: OrderReferenceStatus }) {
         {order._id && (
           <Link
             to={`/orders/${order._id}`}
-            className="inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="text-nowrap inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
             style={FONT_SANS}
           >
             {isQuote ? "View Order Status" : "Track Order"}
@@ -197,7 +197,7 @@ function ConfirmContent({ order }: { order: OrderReferenceStatus }) {
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 border border-[#25D366] text-[#25D366] px-8 py-4 text-xs tracking-[0.2em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer"
+            className="text-nowrap inline-flex items-center justify-center gap-2 border border-[#25D366] text-[#25D366] px-8 py-4 text-xs tracking-[0.2em] uppercase hover:bg-[#25D366]/10 transition-colors cursor-pointer"
             style={FONT_SANS}
           >
             <MessageCircle size={13} /> WhatsApp Us
@@ -205,7 +205,7 @@ function ConfirmContent({ order }: { order: OrderReferenceStatus }) {
         )}
         <Link
           to="/shop"
-          className="inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="text-nowrap inline-flex items-center justify-center gap-2 border border-border text-muted-foreground px-8 py-4 text-xs tracking-[0.2em] uppercase hover:border-foreground hover:text-foreground transition-colors cursor-pointer"
           style={FONT_SANS}
         >
           Continue Shopping

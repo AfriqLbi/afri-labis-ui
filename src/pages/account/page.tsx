@@ -411,7 +411,7 @@ function ProfileTab({
           <input
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="+234 800 000 0000"
+            placeholder="+234 901 982 5348"
             className="checkout-input"
           />
         </Field>

@@ -1159,7 +1159,14 @@ function QuotesTab() {
                   <Section title="Submit Shipping Quote">
                     {" "}
                     <div className="grid grid-cols-2 gap-3">
-                      <EF label={`Amount (${qf.currency} minor units)`}>
+                      <EF
+                        label={`Shipping fee (${qf.currency === "NGN" ? "₦ naira" : `${qf.currency} — enter in minor units e.g. pence/cents`})`}
+                        hint={
+                          qf.currency === "NGN"
+                            ? "Enter the amount in full naira, e.g. 12000 for ₦12,000"
+                            : `Enter in minor units: e.g. for £200 enter 20000`
+                        }
+                      >
                         <input
                           type="number"
                           min={0}
@@ -1171,14 +1178,23 @@ function QuotesTab() {
                             })
                           }
                           className="checkout-input"
-                          placeholder="e.g. 450000"
+                          placeholder={
+                            qf.currency === "NGN" ? "e.g. 12000" : "e.g. 20000"
+                          }
                         />
                         {qf.amount && !isNaN(parseFloat(qf.amount)) && (
                           <p
                             className="text-[10px] text-primary mt-1"
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
                           >
-                            = {formatPrice(parseFloat(qf.amount) / 100)}
+                            ={" "}
+                            {qf.currency === "NGN"
+                              ? `₦${parseFloat(qf.amount).toLocaleString("en-NG")}`
+                              : new Intl.NumberFormat("en-US", {
+                                  style: "currency",
+                                  currency: qf.currency.toUpperCase() || "GBP",
+                                  minimumFractionDigits: 2,
+                                }).format(parseFloat(qf.amount) / 100)}
                           </p>
                         )}
                       </EF>

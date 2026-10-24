@@ -92,7 +92,7 @@ const NIGERIAN_STATES = [
   "Zamfara",
 ];
 
-const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2348000000000";
+const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2349019825348";
 
 // Map full country name → ISO alpha-2 (mirrors backend utility)
 function toIso(country: string): string {
