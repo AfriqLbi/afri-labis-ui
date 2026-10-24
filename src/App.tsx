@@ -1,5 +1,15 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { DefaultProviders } from "./components/providers/default.tsx";
+
+/** Scrolls to the top of the page on every route change. */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
+  return null;
+}
 import {
   RequireAuth,
   RequireAdmin,
@@ -49,6 +59,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <DefaultProviders>
+        <ScrollToTop />
         <Routes>
           {/* ── Public storefront ── */}
           <Route path="/" element={<Index />} />
