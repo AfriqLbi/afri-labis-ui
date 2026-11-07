@@ -133,14 +133,41 @@
     @apply bg-background text-foreground;
   }
 
-  /* ── PWA standalone background ──────────────────────────────────────────────
-     Only when running as an installed PWA, show the brand yellow as the
-     page background so there is no dark flash before the splash or app JS
-     loads. Normal browser tabs keep the dark theme. */
+  /* ── PWA standalone background + status bar ────────────────────────────────
+     Only when running as an installed PWA:
+       1. Brand yellow as the page background (no dark flash before JS loads)
+       2. A gold strip behind the iOS status bar (using black-translucent mode)
+       3. The fixed header pushed below the safe area so its content isn't hidden
+     Normal browser tabs keep the dark theme and are unaffected. */
   @media (display-mode: standalone) {
     html,
     body {
       background-color: #fed700;
+    }
+
+    /* Gold bar behind the iOS status bar — fills the top safe area. */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: env(safe-area-inset-top, 0px);
+      background-color: #fed700;
+      z-index: 9998; /* above header (z-50), below modals/splash (z-100) */
+      pointer-events: none;
+    }
+
+    /* Push the storefront header below the status bar. */
+    header[class*="fixed"][class*="top-0"] {
+      top: env(safe-area-inset-top, 0px);
+    }
+
+    /* Shift page content down so it aligns with the pushed-down header.
+       The existing pt-[65px] / pt-16.25 on pages now sits below the safe
+       area, matching the header's new top position. */
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
     }
   }
 
