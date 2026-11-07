@@ -12,7 +12,7 @@ const PILLARS = [
   {
     num: "02",
     title: "Modern & Wearable",
-    body: "African clothing should not live only in museums or on special occasions. Our pieces are designed for every day — anywhere in the world.",
+    body: "African clothing should not live only in museums or on special occasions. Our pieces are designed for every day anywhere in the world.",
   },
   {
     num: "03",
@@ -22,7 +22,7 @@ const PILLARS = [
   {
     num: "04",
     title: "Global Ambition",
-    body: "Our long-term vision is to become a major non-oil export brand from Nigeria — taking African-made textiles and garments to customers around the world.",
+    body: "Our long-term vision is to become a major non-oil export brand from Nigeria taking African-made textiles and garments to customers around the world.",
   },
 ];
 
@@ -82,7 +82,7 @@ export default function AboutPage() {
           className="space-y-8"
         >
           <div className="flex items-center gap-4">
-            <div className="w-8 h-[2px] bg-primary" />
+            <div className="w-8 h-0.5 bg-primary" />
             <span
               className="text-xs tracking-[0.3em] uppercase text-primary"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
@@ -91,7 +91,7 @@ export default function AboutPage() {
             </span>
           </div>
           <p
-            className="text-4xl md:text-5xl font-light text-foreground leading-snug"
+            className="text-4xl md:text-5xl font-light text-foreground leading-snug text-justify"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             LÁBí is an indigenous African textile and fashion brand founded in{" "}
@@ -100,7 +100,7 @@ export default function AboutPage() {
             </em>
           </p>
           <p
-            className="text-xl font-light text-muted-foreground leading-relaxed max-w-3xl"
+            className="text-xl font-light text-muted-foreground leading-relaxed text-justify max-w-3xl"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             We are on a mission to take Aṣọ-Òkè and African textiles to the
@@ -108,7 +108,7 @@ export default function AboutPage() {
             that can be worn every day, anywhere in the world.
           </p>
           <p
-            className="text-lg font-light text-muted-foreground leading-relaxed max-w-3xl"
+            className="text-justify text-lg font-light text-muted-foreground leading-relaxed max-w-3xl"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             At LÁBí, we believe African clothing should not be preserved only in
@@ -176,7 +176,7 @@ export default function AboutPage() {
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
               From our FÌLÁ and Aṣọ-Òkè trousers to jackets, shirts, coats and
-              other contemporary pieces — we combine traditional craftsmanship
+              other contemporary pieces, we combine traditional craftsmanship
               with modern design to create clothing that allows people to wear
               their heritage with pride.
             </p>
@@ -200,7 +200,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8 }}
           className="flex items-center gap-4 mb-16"
         >
-          <div className="w-8 h-[2px] bg-primary" />
+          <div className="w-8 h-0.5 bg-primary" />
           <span
             className="text-xs tracking-[0.3em] uppercase text-primary"
             style={{ fontFamily: "'Montserrat', sans-serif" }}
@@ -252,7 +252,7 @@ export default function AboutPage() {
             transition={{ duration: 0.8 }}
             className="flex items-center gap-4"
           >
-            <div className="w-8 h-[2px] bg-primary" />
+            <div className="w-8 h-0.5 bg-primary" />
             <span
               className="text-xs tracking-[0.3em] uppercase text-primary"
               style={{ fontFamily: "'Montserrat', sans-serif" }}

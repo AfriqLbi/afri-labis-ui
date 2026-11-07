@@ -29,7 +29,7 @@ export default function Hero() {
             className="text-primary text-xs tracking-[0.4em] uppercase mb-6"
             style={{ fontFamily: "'Montserrat', sans-serif" }}
           >
-            New Collection — SS 2025
+            New Collection SS 2025
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
@@ -50,7 +50,7 @@ export default function Hero() {
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             Contemporary African fashion that celebrates the richness of print,
-            pattern, and ancestral craft — worn with pride.
+            pattern, and ancestral craft worn with pride.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -90,7 +90,7 @@ export default function Hero() {
             duration: 1.8,
             ease: "easeInOut" as const,
           }}
-          className="w-[1px] h-12 bg-primary/60"
+          className="w-px h-12 bg-primary/60"
         />
         <span
           className="text-[10px] tracking-[0.3em] text-white/40 uppercase rotate-90 translate-x-4"

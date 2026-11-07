@@ -13,7 +13,7 @@ export default function BrandStory() {
           transition={{ duration: 0.9, ease: "easeOut" as const }}
         >
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-8 h-[2px] bg-primary" />
+            <div className="w-8 h-0.5 bg-primary" />
             <span
               className="text-xs tracking-[0.3em] uppercase text-primary"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
@@ -29,15 +29,15 @@ export default function BrandStory() {
             of Africa.
           </h2>
           <p
-            className="text-muted-foreground text-lg font-light leading-relaxed mb-6"
+            className="text-muted-foreground text-lg font-light leading-relaxed text-justify mb-6"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             LÁBí is an indigenous African textile and fashion brand founded in
-            Ilorin, Kwara State, Nigeria — on a mission to take Aṣọ-Òkè and
+            Ilorin, Kwara State, Nigeria on a mission to take Aṣọ-Òkè and
             African textiles to the world.
           </p>
           <p
-            className="text-muted-foreground text-lg font-light leading-relaxed mb-10"
+            className="text-muted-foreground text-lg font-light leading-relaxed mb-10 text-justify"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             We work with local weavers, tailors and artisans, creating

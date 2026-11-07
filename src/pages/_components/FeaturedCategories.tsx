@@ -10,10 +10,10 @@ const CATEGORIES = [
     href: "/shop?category=women",
   },
   {
-    label: "African Prints",
-    sub: "AsoOke, kente & adire",
+    label: "Men's Collection",
+    sub: "Dresses, sets & accessories",
     img: "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    href: "/shop?category=aso-oke-material",
+    href: "/shop?category=men",
   },
   {
     label: "Editorial",
