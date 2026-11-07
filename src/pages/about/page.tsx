@@ -43,7 +43,8 @@ export default function AboutPage() {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url("https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920")`,
+            backgroundImage: `url("https://res.cloudinary.com/dff0ootc/image/upload/v1794082525/WhatsApp_Image_2026-11-07_at_20.55.36_2.jpg")`,
+            //  https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
@@ -131,13 +132,15 @@ export default function AboutPage() {
           >
             <div className="grid grid-cols-2 gap-3">
               <img
-                src="https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600"
+                src="https://res.cloudinary.com/dff0ootc/image/upload/v1794082526/WhatsApp_Image_2026-11-07_at_20.56.15.jpg"
+                // https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600 
                 alt="Aṣọ-Òkè weaving"
                 className="w-full object-cover mt-10"
                 style={{ aspectRatio: "3/4" }}
               />
               <img
-                src="https://images.unsplash.com/photo-1578509566163-068acd11b8e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600"
+                src="https://res.cloudinary.com/dff0ootc/image/upload/v1794082525/WhatsApp_Image_2026-11-07_at_20.55.36_2.jpg"
+                // https://images.unsplash.com/photo-1578509566163-068acd11b8e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600
                 alt="LÁBí craftsmanship"
                 className="w-full object-cover -mt-10"
                 style={{ aspectRatio: "3/4" }}
