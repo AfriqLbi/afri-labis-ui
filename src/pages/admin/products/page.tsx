@@ -231,12 +231,12 @@ export default function AdminProductsPage() {
                           >
                             {p.sku}
                           </p>
-                          {p.categoryName && (
+                          {(p.categories ?? []).length > 0 && (
                             <p
                               className="text-[10px] text-muted-foreground/60 mt-0.5"
                               style={{ fontFamily: "'Montserrat', sans-serif" }}
                             >
-                              {p.categoryName}
+                              {p.categories.map((c) => c.name).join(" · ")}
                             </p>
                           )}
                         </div>

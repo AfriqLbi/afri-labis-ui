@@ -155,6 +155,25 @@
         document.documentElement.classList.add(theme);
       } catch (e) {}
     </script>
+
+    <!-- ── Google Analytics 4 ─────────────────────────────────────────────── -->
+    <!-- Vite replaces %VITE_GA_MEASUREMENT_ID% at build time. If the env var
+         is empty the src stays blank and gtag never initialises. -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      window.gtag = gtag;
+      gtag("js", new Date());
+      gtag("config", "%VITE_GA_MEASUREMENT_ID%", {
+        send_page_view: false, // we send page_view manually on route changes
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

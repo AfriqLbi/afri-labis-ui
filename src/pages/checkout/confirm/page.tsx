@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import {
   Check,
@@ -15,6 +16,7 @@ import Header from "../../_components/Header.tsx";
 import Footer from "../../_components/Footer.tsx";
 import PageMeta from "@/components/PageMeta.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
+import { purchase } from "@/lib/analytics.ts";
 
 const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER ?? "2349019825348";
 
@@ -25,6 +27,19 @@ export default function CheckoutConfirmPage() {
   const [searchParams] = useSearchParams();
   const ref = searchParams.get("ref");
   const { data: order, isLoading, isError } = useOrderByReference(ref);
+
+  // Fire GA4 purchase event once when payment is confirmed
+  const purchaseFired = useRef(false);
+  useEffect(() => {
+    if (
+      order &&
+      (order.status === "paid" || order.status === "fulfilled") &&
+      !purchaseFired.current
+    ) {
+      purchaseFired.current = true;
+      purchase(order.orderNumber, [], 0);
+    }
+  }, [order?.status]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,7 +67,10 @@ function NotFoundBlock() {
       <div className="w-16 h-16 bg-muted flex items-center justify-center mx-auto mb-2">
         <AlertCircle size={24} className="text-muted-foreground" />
       </div>
-      <p className="text-4xl font-light text-muted-foreground" style={FONT_SERIF}>
+      <p
+        className="text-4xl font-light text-muted-foreground"
+        style={FONT_SERIF}
+      >
         Order not found
       </p>
       <Link
@@ -105,7 +123,8 @@ function ConfirmContent({ order }: { order: OrderReferenceStatus }) {
   } else if (isClosed) {
     eyebrow = "Order Closed";
     headline = "This order is no longer active";
-    subtext = "If you believe this is an error, please contact us and we'll help.";
+    subtext =
+      "If you believe this is an error, please contact us and we'll help.";
   }
 
   const showPayLink = (isPending || isFailed) && !!order.checkoutUrl;
@@ -146,7 +165,10 @@ function ConfirmContent({ order }: { order: OrderReferenceStatus }) {
       >
         {eyebrow}
       </p>
-      <h1 className="text-5xl font-light text-foreground mb-6" style={FONT_SERIF}>
+      <h1
+        className="text-5xl font-light text-foreground mb-6"
+        style={FONT_SERIF}
+      >
         {headline}
       </h1>
       <p

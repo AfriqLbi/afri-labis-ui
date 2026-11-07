@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { ProductDetailSkeleton } from "@/components/ui/skeleton.tsx";
 import SizeGuideModal from "@/components/SizeGuideModal.tsx";
 import PageMeta from "@/components/PageMeta.tsx";
+import { viewItem } from "@/lib/analytics.ts";
 
 // Adapter: ApiProduct → local Product shape expected by ProductCard / useCart
 function toLocalProduct(p: ApiProduct) {
@@ -62,6 +63,18 @@ export default function ProductDetailPage() {
   const { data, isLoading, isError } = useProduct(id ?? "");
   const product = data?.product;
   const apiSimilar = data?.similar ?? [];
+
+  // Fire GA4 view_item when the product loads
+  useEffect(() => {
+    if (!product) return;
+    viewItem({
+      item_id: product.sku,
+      item_name: product.title,
+      item_category: product.categorySlug,
+      item_brand: product.brandName,
+      price: product.price,
+    });
+  }, [product?.slug]); // re-fire when navigating between products
 
   if (isLoading) {
     return (

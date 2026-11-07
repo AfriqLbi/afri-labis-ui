@@ -4,7 +4,7 @@
  * Pass `product` to open in edit mode; omit it for create mode.
  */
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
+import { X, Plus, Trash2, Upload, ImageIcon, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -39,7 +39,7 @@ function emptyForm() {
     sku: "",
     title: "",
     brandId: "",
-    categoryId: "",
+    categoryIds: [] as string[],
     price: "",
     compareAtPrice: "",
     stock: "0",
@@ -63,7 +63,7 @@ function productToForm(p: ApiProduct) {
     sku: p.sku,
     title: p.title,
     brandId: p.brandId ?? "", // prefill from normalised field
-    categoryId: p.categoryId ?? "", // prefill from normalised field
+    categoryIds: (p.categories ?? []).map((c) => c.id).filter(Boolean), // multi-category prefill
     price: String(p.price),
     compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : "",
     stock: String(p.stock),
@@ -258,7 +258,10 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
 
     if (form.compareAtPrice)
       dto.compareAtPrice = parseFloat(form.compareAtPrice);
-    if (form.categoryId) dto.categoryId = form.categoryId;
+    if (form.categoryIds.length > 0) {
+      dto.categoryId = form.categoryIds[0]; // primary = first selected
+      dto.categoryIds = form.categoryIds; // full multi-category array
+    }
 
     // Shipping weight / dimensions
     if (form.packageWeightGrams !== "")
@@ -431,19 +434,58 @@ export default function ProductFormModal({ open, onClose, product }: Props) {
                   </Field>
                 )}
 
-                <Field label="Category">
-                  <select
-                    value={form.categoryId}
-                    onChange={(e) => set("categoryId", e.target.value)}
-                    className="checkout-input"
-                  >
-                    <option value="">— Select category —</option>
-                    {(categories ?? []).map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                <Field
+                  label="Categories"
+                  hint="Select all that apply — first checked is the primary"
+                >
+                  <div className="border border-border max-h-48 overflow-y-auto">
+                    {(categories ?? []).map((c) => {
+                      const checked = form.categoryIds.includes(c._id);
+                      return (
+                        <label
+                          key={c._id}
+                          className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                        >
+                          <div
+                            className={`w-4 h-4 border flex items-center justify-center shrink-0 ${checked ? "bg-primary border-primary" : "border-border"}`}
+                          >
+                            {checked && (
+                              <Check
+                                size={10}
+                                className="text-primary-foreground"
+                              />
+                            )}
+                          </div>
+                          <span
+                            className="text-xs text-foreground"
+                            style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          >
+                            {c.name}
+                            {form.categoryIds[0] === c._id && (
+                              <span className="ml-2 text-[9px] tracking-[0.15em] uppercase text-primary">
+                                Primary
+                              </span>
+                            )}
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={checked}
+                            onChange={(e) => {
+                              set(
+                                "categoryIds",
+                                e.target.checked
+                                  ? [...form.categoryIds, c._id]
+                                  : form.categoryIds.filter(
+                                      (id) => id !== c._id,
+                                    ),
+                              );
+                            }}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
                 </Field>
               </Section>
 

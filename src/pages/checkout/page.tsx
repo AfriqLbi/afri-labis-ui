@@ -159,12 +159,14 @@ export default function CheckoutPage() {
   const stripeEnabled = import.meta.env.VITE_STRIPE_ENABLED === "true";
   const [paymentProvider, setPaymentProvider] = useState<
     "paystack" | "flutterwave" | "stripe"
-  >(isNgn ? "paystack" : stripeEnabled ? "stripe" : "flutterwave");
+  >("paystack"); // Paystack is always the default — it handles all currencies
 
   useEffect(() => {
-    if (!isNgn) setPaymentProvider(stripeEnabled ? "stripe" : "flutterwave");
-    else setPaymentProvider((p) => (p === "stripe" ? "paystack" : p));
-  }, [isNgn, stripeEnabled]);
+    // When switching to Stripe-only mode for a currency, enforce it;
+    // otherwise keep whatever the user last selected (Paystack works everywhere).
+    if (!isNgn && stripeEnabled && paymentProvider === "stripe") return;
+    if (isNgn && paymentProvider === "stripe") setPaymentProvider("paystack");
+  }, [isNgn, stripeEnabled, paymentProvider]);
 
   // ── Shipping estimate ──────────────────────────────────────────────────────
 
@@ -592,19 +594,41 @@ export default function CheckoutPage() {
                       {!isQuoteZone && (
                         <Field label="Payment Provider">
                           <div className="space-y-3">
-                            {isNgn ? (
-                              [
+                            {(() => {
+                              // Build the provider list for this currency.
+                              // Paystack accepts all currencies; Flutterwave handles
+                              // mobile money and African currencies well; Stripe is
+                              // USD/GBP/EUR/CAD when enabled.
+                              const opts: {
+                                id: "paystack" | "flutterwave" | "stripe";
+                                label: string;
+                                sub: string;
+                              }[] = [
                                 {
-                                  id: "paystack" as const,
+                                  id: "paystack",
                                   label: "Paystack",
-                                  sub: "Cards, Bank Transfer, USSD",
+                                  sub: isNgn
+                                    ? "Cards, Bank Transfer, USSD"
+                                    : `Cards · ${activeCurrency}`,
                                 },
                                 {
-                                  id: "flutterwave" as const,
+                                  id: "flutterwave",
                                   label: "Flutterwave",
-                                  sub: "Cards, Mobile Money, Bank Transfer",
+                                  sub: isNgn
+                                    ? "Cards, Mobile Money, Bank Transfer"
+                                    : `Cards, Mobile Money · ${activeCurrency}`,
                                 },
-                              ].map((opt) => (
+                                ...(stripeEnabled && !isNgn
+                                  ? [
+                                      {
+                                        id: "stripe" as const,
+                                        label: "Stripe",
+                                        sub: `International cards · ${activeCurrency}`,
+                                      },
+                                    ]
+                                  : []),
+                              ];
+                              return opts.map((opt) => (
                                 <label
                                   key={opt.id}
                                   className={`flex items-center gap-4 px-4 py-4 border cursor-pointer transition-all ${paymentProvider === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-foreground/40"}`}
@@ -641,34 +665,8 @@ export default function CheckoutPage() {
                                     onChange={() => setPaymentProvider(opt.id)}
                                   />
                                 </label>
-                              ))
-                            ) : (
-                              <div className="px-4 py-4 border border-primary/30 bg-primary/5 flex items-center gap-3">
-                                <div className="w-4 h-4 border border-primary flex items-center justify-center shrink-0">
-                                  <div className="w-2 h-2 bg-primary" />
-                                </div>
-                                <div>
-                                  <p
-                                    className="text-xs font-semibold text-foreground"
-                                    style={{
-                                      fontFamily: "'Montserrat', sans-serif",
-                                    }}
-                                  >
-                                    {stripeEnabled ? "Stripe" : "Flutterwave"}
-                                  </p>
-                                  <p
-                                    className="text-[10px] text-muted-foreground"
-                                    style={{
-                                      fontFamily: "'Montserrat', sans-serif",
-                                    }}
-                                  >
-                                    {stripeEnabled
-                                      ? `International cards · ${activeCurrency}`
-                                      : `Multi-currency · ${activeCurrency}`}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
+                              ));
+                            })()}
                           </div>
                         </Field>
                       )}

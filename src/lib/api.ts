@@ -64,6 +64,7 @@ export type ApiProduct = {
   categoryName: string;
   categorySlug: string;
   categoryId: string; // ObjectId — needed to prefill edit form
+  categories: { id: string; name: string; slug: string }[];
   price: number; // always full NGN (naira), never kobo
   compareAtPrice: number | null;
   stock: number;
@@ -102,6 +103,17 @@ export function normaliseProduct(raw: any): ApiProduct {
     categoryName: raw.categoryName ?? raw.category?.name ?? "",
     categorySlug: raw.categorySlug ?? raw.category?.slug ?? "",
     categoryId: raw.categoryId ?? raw.category?.id ?? "",
+    categories:
+      Array.isArray(raw.categories) && raw.categories.length > 0
+        ? raw.categories
+        : [
+            // Fall back to the single category object for old API responses
+            {
+              id: raw.categoryId ?? raw.category?.id ?? "",
+              name: raw.categoryName ?? raw.category?.name ?? "",
+              slug: raw.categorySlug ?? raw.category?.slug ?? "",
+            },
+          ],
     // priceBase = full NGN naira (new API); price = full NGN naira (old API)
     price: raw.priceBase ?? raw.price ?? 0,
     compareAtPrice: raw.compareAtPrice ?? null,

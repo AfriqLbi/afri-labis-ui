@@ -1,13 +1,17 @@
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { DefaultProviders } from "./components/providers/default.tsx";
+import { pageView } from "./lib/analytics.ts";
 
-/** Scrolls to the top of the page on every route change. */
+/** Scrolls to the top of the page on every route change and sends a GA4 page_view. */
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  }, [pathname]);
+    // Send a GA4 page_view for every route change (SPA navigation).
+    // GA4 needs the full path including the query string for accurate reporting.
+    pageView(pathname + search);
+  }, [pathname, search]);
   return null;
 }
 import {
