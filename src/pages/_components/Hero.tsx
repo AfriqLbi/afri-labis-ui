@@ -9,7 +9,8 @@ export default function Hero() {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url("https://images.unsplash.com/photo-1531123897727-8f129e1688ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920")`,
+          backgroundImage: `url("https://res.cloudinary.com/dff0ootc/image/upload/f_auto,q_auto,w_1920/v1794066205/N3R_0358.jpg")`,
+          // https://images.unsplash.com/photo-1531123897727-8f129e1688ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920 
         }}
       />
       {/* Gradient overlay */}
