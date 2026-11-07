@@ -11,7 +11,7 @@ const CATEGORIES = [
   },
   {
     label: "African Prints",
-    sub: "Ankara, kente & adire",
+    sub: "AsoOke, kente & adire",
     img: "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
     href: "/shop?category=aso-oke-material",
   },
