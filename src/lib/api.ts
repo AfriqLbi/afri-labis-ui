@@ -870,11 +870,13 @@ export const adminMedia = {
 
 export const adminCatalog = {
   async listProducts(params?: {
+    q?: string;
     status?: string;
     page?: number;
     limit?: number;
   }) {
     const qs = new URLSearchParams();
+    if (params?.q) qs.set("q", params.q);
     if (params?.status) qs.set("status", params.status);
     if (params?.page) qs.set("page", String(params.page));
     if (params?.limit) qs.set("limit", String(params.limit));

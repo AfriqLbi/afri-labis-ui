@@ -8,6 +8,7 @@ import CartDrawer from "@/components/CartDrawer.tsx";
 import { CookieConsent } from "@/components/CookieConsent.tsx";
 import SwUpdatePrompt from "@/components/SwUpdatePrompt.tsx";
 import { IosInstallPrompt } from "@/components/IosInstallPrompt.tsx";
+import { LabiSplash } from "@/components/LabiSplash.tsx";
 
 export function DefaultProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
           <CurrencyProvider>
             <TooltipProvider>
               <CartProvider>
+                <LabiSplash />
                 <Toaster />
                 <CartDrawer />
                 <CookieConsent />

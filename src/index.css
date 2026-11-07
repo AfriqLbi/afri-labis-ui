@@ -133,6 +133,17 @@
     @apply bg-background text-foreground;
   }
 
+  /* ── PWA standalone background ──────────────────────────────────────────────
+     Only when running as an installed PWA, show the brand yellow as the
+     page background so there is no dark flash before the splash or app JS
+     loads. Normal browser tabs keep the dark theme. */
+  @media (display-mode: standalone) {
+    html,
+    body {
+      background-color: #fed700;
+    }
+  }
+
   /* ── Scrollbar styling — matches LABI dark UI ──────────────────────────────
      Thin, gold-on-dark scrollbars on Webkit (Chrome/Safari/Edge).
      Firefox gets the same via scrollbar-color.

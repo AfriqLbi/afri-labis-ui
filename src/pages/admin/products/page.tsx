@@ -1,5 +1,13 @@
-import { useState } from "react";
-import { Plus, Pencil, Archive, ChevronDown, Tag } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Plus,
+  Pencil,
+  Archive,
+  ChevronDown,
+  Tag,
+  Search,
+  X,
+} from "lucide-react";
 import {
   useAdminProducts,
   useAdminSetStock,
@@ -29,13 +37,29 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminProductsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("active");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingStock, setEditingStock] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<ApiProduct | undefined>(
     undefined,
   );
 
-  const { data, isLoading } = useAdminProducts({ status, page, limit: 24 });
+  // Debounce search input → search query (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data, isLoading } = useAdminProducts({
+    q: searchQuery || undefined,
+    status,
+    page,
+    limit: 24,
+  });
   const setStockMut = useAdminSetStock();
   const deleteMut = useAdminDeleteProduct();
   const toggleTagMut = useAdminToggleTag();
@@ -122,6 +146,30 @@ export default function AdminProductsPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Search */}
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search products…"
+                  className="checkout-input pl-9 pr-8 text-xs w-52"
+                />
+                {searchInput && (
+                  <button
+                    onClick={() => setSearchInput("")}
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
               {/* Status filter */}
               <div className="relative">
                 <select

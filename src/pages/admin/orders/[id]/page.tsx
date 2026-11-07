@@ -183,7 +183,7 @@ export default function AdminOrderDetailPage() {
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="p-8 space-y-8 max-w-full">
       {/* ── Header ── */}
       <div>
         <Link
