@@ -43,7 +43,7 @@ export default function AboutPage() {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url("https://res.cloudinary.com/dff0ootc/image/upload/v1794082525/WhatsApp_Image_2026-11-07_at_20.55.36_2.jpg")`,
+            backgroundImage: `url("https://res.cloudinary.com/dff0ootc/image/upload/v1794082527/WhatsApp_Image_2026-11-07_at_20.55.36.jpg")`,
             //  https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920
           }}
         />
@@ -139,7 +139,7 @@ export default function AboutPage() {
                 style={{ aspectRatio: "3/4" }}
               />
               <img
-                src="https://res.cloudinary.com/dff0ootc/image/upload/v1794082525/WhatsApp_Image_2026-11-07_at_20.55.36_2.jpg"
+                src="https://res.cloudinary.com/dff0ootc/image/upload/v1794082527/WhatsApp_Image_2026-11-07_at_20.55.36.jpg"
                 // https://images.unsplash.com/photo-1578509566163-068acd11b8e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600
                 alt="LÁBí craftsmanship"
                 className="w-full object-cover -mt-10"
@@ -159,7 +159,7 @@ export default function AboutPage() {
             className="space-y-6"
           >
             <div className="flex items-center gap-4">
-              <div className="w-8 h-[2px] bg-primary" />
+              <div className="w-8 h-0.5 bg-primary" />
               <span
                 className="text-xs tracking-[0.3em] uppercase text-primary"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
