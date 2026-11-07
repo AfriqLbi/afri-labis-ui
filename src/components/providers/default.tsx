@@ -7,6 +7,7 @@ import { CartProvider } from "@/hooks/use-cart.tsx";
 import CartDrawer from "@/components/CartDrawer.tsx";
 import { CookieConsent } from "@/components/CookieConsent.tsx";
 import SwUpdatePrompt from "@/components/SwUpdatePrompt.tsx";
+import { IosInstallPrompt } from "@/components/IosInstallPrompt.tsx";
 
 export function DefaultProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
                 <CartDrawer />
                 <CookieConsent />
                 <SwUpdatePrompt />
+                <IosInstallPrompt />
                 {children}
               </CartProvider>
             </TooltipProvider>
