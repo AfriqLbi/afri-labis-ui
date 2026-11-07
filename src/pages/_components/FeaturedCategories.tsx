@@ -5,19 +5,21 @@ const CATEGORIES = [
   {
     label: "Women's Collection",
     sub: "Dresses, sets & accessories",
-    img: "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    img: "https://res.cloudinary.com/dff0ootc/image/upload/f_auto,q_auto,w_800,ar_4:5,c_fill,g_auto/v1794066211/N3R_1453.jpg",
+    // img: "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
     href: "/shop?category=women",
   },
   {
     label: "African Prints",
     sub: "Ankara, kente & adire",
     img: "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-    href: "/shop?category=prints",
+    href: "/shop?category=aso-oke-material",
   },
   {
     label: "Editorial",
     sub: "Campaign & lookbook",
-    img: "https://images.unsplash.com/photo-1625646741211-711bdd65c570?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    img: "https://res.cloudinary.com/dff0ootc/image/upload/f_auto,q_auto,w_800,ar_4:5,c_fill,g_auto/v1794066203/N3R_0325.jpg",
+    // img: "https://images.unsplash.com/photo-1625646741211-711bdd65c570?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
     href: "/lookbook",
   },
 ];
