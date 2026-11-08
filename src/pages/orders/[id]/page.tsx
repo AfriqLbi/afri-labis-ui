@@ -215,7 +215,14 @@ export default function OrderTrackingPage() {
   const handlePayNow = async () => {
     setPaying(true);
     try {
-      const result = await ordersApi.pay(id!, "paystack", linkToken);
+      // Paystack only supports NGN and USD for Nigerian businesses.
+      // For all other currencies (GBP, EUR, CAD, …) use Flutterwave.
+      const paystackCurrencies = new Set(["NGN", "USD"]);
+      const currency = order.chargeCurrency ?? "NGN";
+      const provider = paystackCurrencies.has(currency)
+        ? "paystack"
+        : "flutterwave";
+      const result = await ordersApi.pay(id!, provider, linkToken);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const url = (result as any).checkoutUrl;
       if (url) window.location.href = url;

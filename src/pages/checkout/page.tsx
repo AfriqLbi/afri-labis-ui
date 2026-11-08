@@ -157,6 +157,9 @@ export default function CheckoutPage() {
 
   const isNgn = activeCurrency === "NGN";
   const stripeEnabled = import.meta.env.VITE_STRIPE_ENABLED === "true";
+  // Paystack only supports NGN and USD for Nigerian businesses
+  const paystackSupported =
+    activeCurrency === "NGN" || activeCurrency === "USD";
   const [paymentProvider, setPaymentProvider] = useState<
     "paystack" | "flutterwave" | "stripe"
   >("paystack"); // Paystack is always the default — it handles all currencies
@@ -166,7 +169,10 @@ export default function CheckoutPage() {
     // otherwise keep whatever the user last selected (Paystack works everywhere).
     if (!isNgn && stripeEnabled && paymentProvider === "stripe") return;
     if (isNgn && paymentProvider === "stripe") setPaymentProvider("paystack");
-  }, [isNgn, stripeEnabled, paymentProvider]);
+    // If Paystack was selected but the currency switched to one it doesn't support, move to Flutterwave
+    if (!paystackSupported && paymentProvider === "paystack")
+      setPaymentProvider("flutterwave");
+  }, [isNgn, stripeEnabled, paymentProvider, paystackSupported]);
 
   // ── Shipping estimate ──────────────────────────────────────────────────────
 
@@ -604,15 +610,20 @@ export default function CheckoutPage() {
                                 label: string;
                                 sub: string;
                               }[] = [
+                                // Paystack supports NGN and USD only for Nigerian businesses
+                                ...(paystackSupported
+                                  ? [
+                                      {
+                                        id: "paystack" as const,
+                                        label: "Paystack",
+                                        sub: isNgn
+                                          ? "Cards, Bank Transfer, USSD"
+                                          : `Cards · ${activeCurrency}`,
+                                      },
+                                    ]
+                                  : []),
                                 {
-                                  id: "paystack",
-                                  label: "Paystack",
-                                  sub: isNgn
-                                    ? "Cards, Bank Transfer, USSD"
-                                    : `Cards · ${activeCurrency}`,
-                                },
-                                {
-                                  id: "flutterwave",
+                                  id: "flutterwave" as const,
                                   label: "Flutterwave",
                                   sub: isNgn
                                     ? "Cards, Mobile Money, Bank Transfer"
