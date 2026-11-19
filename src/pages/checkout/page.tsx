@@ -264,7 +264,10 @@ export default function CheckoutPage() {
         cartId: serverCart?.id,
         customerEmail: contact.email,
         customerName: `${contact.firstName} ${contact.lastName}`.trim(),
-        paymentProvider,
+        // For quote-zone orders the provider is irrelevant at creation —
+        // payment happens later via /orders/:id/pay using the email link.
+        // Default to paystack so the stored hint is consistent.
+        paymentProvider: isQuoteZone ? "paystack" : paymentProvider,
         shippingAddress,
         chargeCurrency: activeCurrency !== "NGN" ? activeCurrency : undefined,
         fxRateSnapshot,
