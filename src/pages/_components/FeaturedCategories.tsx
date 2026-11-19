@@ -12,7 +12,8 @@ const CATEGORIES = [
   {
     label: "Men's Collection",
     sub: "Dresses, sets & accessories",
-    img: "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+    img: "https://res.cloudinary.com/dff0ootc/image/upload/f_auto,q_auto,w_800,ar_4:5,c_fill,g_auto/v1794066211/N3R_1675.jpg",
+    // img: "https://images.unsplash.com/photo-1552710307-537199cd41c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
     href: "/shop?category=men",
   },
   {
