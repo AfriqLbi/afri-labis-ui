@@ -173,6 +173,7 @@ export type ApiOrder = {
   total: number;
   currency: string;
   chargeCurrency: string;
+  displayCurrency: string | null;
   chargeTotal: number | null;
   ngnTotal: number | null;
   fxRate: number;

@@ -1063,6 +1063,10 @@ function QuotesTab() {
                     ? `, ${order.shippingAddress.state}`
                     : ""}{" "}
                   · {order.chargeCurrency}
+                  {order.displayCurrency &&
+                  order.displayCurrency !== order.chargeCurrency
+                    ? ` (browses in ${order.displayCurrency})`
+                    : ""}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -1162,14 +1166,37 @@ function QuotesTab() {
                 {/* Submit quote — only for AWAITING_QUOTE */}
                 {order.shippingStatus === "AWAITING_QUOTE" && (
                   <Section title="Submit Shipping Quote">
-                    {" "}
+                    {/* Currency context banner — tells admin what currency to quote in */}
+                    <div className="bg-primary/5 border border-primary/20 px-3 py-2.5 mb-4 space-y-0.5">
+                      <p
+                        className="text-[10px] font-semibold text-primary uppercase tracking-[0.15em]"
+                        style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      >
+                        Quote in: {order.chargeCurrency}
+                      </p>
+                      {order.displayCurrency &&
+                        order.displayCurrency !== order.chargeCurrency && (
+                          <p
+                            className="text-[10px] text-muted-foreground"
+                            style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          >
+                            Customer browses in {order.displayCurrency} — charge
+                            currency is {order.chargeCurrency} (gateway
+                            limitation). Enter the amount in{" "}
+                            <strong className="text-foreground">
+                              {order.chargeCurrency}
+                            </strong>
+                            .
+                          </p>
+                        )}
+                    </div>{" "}
                     <div className="grid grid-cols-2 gap-3">
                       <EF
                         label={`Shipping fee (${qf.currency})`}
                         hint={
                           qf.currency === "NGN"
                             ? "Enter in full naira — e.g. 12000 for ₦12,000"
-                            : `Enter the exact amount — e.g. 45 for £45.00`
+                            : `Enter the exact amount — e.g. 45 for ${qf.currency === "USD" ? "$45.00" : qf.currency + " 45"}`
                         }
                       >
                         <input
