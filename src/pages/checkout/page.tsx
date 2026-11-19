@@ -463,22 +463,37 @@ export default function CheckoutPage() {
                           className="checkout-input"
                         />
                       </Field>
+                      <Field label="City" required>
+                        <input
+                          required
+                          value={shipping.city}
+                          onChange={(e) =>
+                            setShipping({
+                              ...shipping,
+                              city: e.target.value,
+                            })
+                          }
+                          placeholder="Lagos"
+                          className="checkout-input"
+                        />
+                      </Field>
+                      <Field label="Country" required>
+                        <input
+                          required
+                          value={shipping.country}
+                          onChange={(e) =>
+                            setShipping({
+                              ...shipping,
+                              state: "",
+                              country: e.target.value,
+                            })
+                          }
+                          placeholder="Nigeria"
+                          className="checkout-input"
+                        />
+                      </Field>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="City" required>
-                          <input
-                            required
-                            value={shipping.city}
-                            onChange={(e) =>
-                              setShipping({
-                                ...shipping,
-                                city: e.target.value,
-                              })
-                            }
-                            placeholder="Lagos"
-                            className="checkout-input"
-                          />
-                        </Field>
-                        <Field label="State / Region" required>
+                        <Field label="State / Province / County" required>
                           {shipping.country.toLowerCase() === "nigeria" ? (
                             <select
                               required
@@ -506,29 +521,12 @@ export default function CheckoutPage() {
                                   state: e.target.value,
                                 })
                               }
-                              placeholder="Province / State"
+                              placeholder="Province / State / County"
                               className="checkout-input"
                             />
                           )}
                         </Field>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="Country" required>
-                          <input
-                            required
-                            value={shipping.country}
-                            onChange={(e) =>
-                              setShipping({
-                                ...shipping,
-                                state: "",
-                                country: e.target.value,
-                              })
-                            }
-                            placeholder="Nigeria"
-                            className="checkout-input"
-                          />
-                        </Field>
-                        <Field label="Postal Code">
+                        <Field label="Postal Code / Eircode">
                           <input
                             value={shipping.zip}
                             onChange={(e) =>
@@ -537,7 +535,7 @@ export default function CheckoutPage() {
                                 zip: e.target.value,
                               })
                             }
-                            placeholder="100001"
+                            placeholder="e.g. SW1A 1AA or D01 F5P2"
                             className="checkout-input"
                           />
                         </Field>
