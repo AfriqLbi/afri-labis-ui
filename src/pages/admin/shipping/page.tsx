@@ -8,6 +8,7 @@
  */
 import { useState } from "react";
 import * as React from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Plus,
   Pencil,
@@ -48,8 +49,21 @@ import type {
 
 type Tab = "zones" | "quotes" | "settings";
 
+const VALID_TABS: Tab[] = ["zones", "quotes", "settings"];
+
 export default function AdminShippingPage() {
-  const [tab, setTab] = useState<Tab>("zones");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read tab from URL (?tab=quotes) — falls back to "zones"
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const [tab, setTab] = useState<Tab>(
+    tabParam && VALID_TABS.includes(tabParam) ? tabParam : "zones",
+  );
+
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    setSearchParams(t === "zones" ? {} : { tab: t });
+  };
 
   return (
     <div className="p-6 lg:p-10 max-w-full">
@@ -72,7 +86,7 @@ export default function AdminShippingPage() {
         {(["zones", "quotes", "settings"] as Tab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => handleTabChange(t)}
             className={`px-5 py-3 text-[10px] tracking-[0.2em] uppercase transition-all cursor-pointer border-b-2 ${
               tab === t
                 ? "border-primary text-primary"
