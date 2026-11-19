@@ -1119,9 +1119,14 @@ function QuotesTab() {
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Fee</span>
                           <span className="text-primary font-semibold">
-                            {formatPrice(
-                              (order.shippingQuote.amount ?? 0) / 100,
-                            )}
+                            {new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: order.chargeCurrency ?? "NGN",
+                              minimumFractionDigits:
+                                order.chargeCurrency === "NGN" ? 0 : 2,
+                              maximumFractionDigits:
+                                order.chargeCurrency === "NGN" ? 0 : 2,
+                            }).format((order.shippingQuote.amount ?? 0) / 100)}
                           </span>
                         </div>
                       )}
@@ -1160,16 +1165,17 @@ function QuotesTab() {
                     {" "}
                     <div className="grid grid-cols-2 gap-3">
                       <EF
-                        label={`Shipping fee (${qf.currency === "NGN" ? "₦ naira" : `${qf.currency} — enter in minor units e.g. pence/cents`})`}
+                        label={`Shipping fee (${qf.currency})`}
                         hint={
                           qf.currency === "NGN"
-                            ? "Enter the amount in full naira, e.g. 12000 for ₦12,000"
-                            : `Enter in minor units: e.g. for £200 enter 20000`
+                            ? "Enter in full naira — e.g. 12000 for ₦12,000"
+                            : `Enter the exact amount — e.g. 45 for £45.00`
                         }
                       >
                         <input
                           type="number"
                           min={0}
+                          step="0.01"
                           value={qf.amount}
                           onChange={(e) =>
                             setQuoteForm({
@@ -1179,7 +1185,7 @@ function QuotesTab() {
                           }
                           className="checkout-input"
                           placeholder={
-                            qf.currency === "NGN" ? "e.g. 12000" : "e.g. 20000"
+                            qf.currency === "NGN" ? "e.g. 12000" : "e.g. 45"
                           }
                         />
                         {qf.amount && !isNaN(parseFloat(qf.amount)) && (
@@ -1188,13 +1194,14 @@ function QuotesTab() {
                             style={{ fontFamily: "'Montserrat', sans-serif" }}
                           >
                             ={" "}
-                            {qf.currency === "NGN"
-                              ? `₦${parseFloat(qf.amount).toLocaleString("en-NG")}`
-                              : new Intl.NumberFormat("en-US", {
-                                  style: "currency",
-                                  currency: qf.currency.toUpperCase() || "GBP",
-                                  minimumFractionDigits: 2,
-                                }).format(parseFloat(qf.amount) / 100)}
+                            {new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: qf.currency.toUpperCase() || "NGN",
+                              minimumFractionDigits:
+                                qf.currency === "NGN" ? 0 : 2,
+                              maximumFractionDigits:
+                                qf.currency === "NGN" ? 0 : 2,
+                            }).format(parseFloat(qf.amount))}
                           </p>
                         )}
                       </EF>
